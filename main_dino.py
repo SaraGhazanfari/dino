@@ -394,7 +394,7 @@ class DINOLoss(nn.Module):
 
         total_loss = 0
         n_loss_terms = 0
-        log_stats = {'teacher_out': teacher_out.shape,
+        log_stats = {'teacher_out': teacher_out[0].shape,
                      'student_out': student_out.shape}
         if utils.is_main_process():
             with (Path(args.output_dir) / "log.txt").open("a") as f:
