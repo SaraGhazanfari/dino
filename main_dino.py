@@ -182,12 +182,16 @@ def train_dino(args):
         print(f"Unknow architecture: {args.arch}")
 
     # multi-crop wrapper handles forward with inputs of different resolutions
-    student = utils.MultiCropWrapper(student, DINOHead(
-        embed_dim,
-        args.out_dim,
-        use_bn=args.use_bn_in_head,
-        norm_last_layer=args.norm_last_layer,
-    ))
+    # student = utils.MultiCropWrapper(student, DINOHead(
+    #     embed_dim,
+    #     args.out_dim,
+    #     use_bn=args.use_bn_in_head,
+    #     norm_last_layer=args.norm_last_layer,
+    # ))
+    student = utils.MultiCropWrapper(
+        student,
+        DINOHead(embed_dim, args.out_dim, args.use_bn_in_head),
+    )
     teacher = utils.MultiCropWrapper(
         teacher,
         DINOHead(embed_dim, args.out_dim, args.use_bn_in_head),
