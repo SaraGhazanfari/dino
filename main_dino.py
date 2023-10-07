@@ -394,6 +394,7 @@ class DINOLoss(nn.Module):
 
         total_loss = 0
         n_loss_terms = 0
+        print(student_output.shape, teacher_output.shape)
         for iq, q in enumerate(teacher_out):
             for v in range(len(student_out)):
                 if v == iq:
