@@ -394,12 +394,17 @@ class DINOLoss(nn.Module):
 
         total_loss = 0
         n_loss_terms = 0
-        print(student_output.shape, teacher_output.shape)
+        log_stats = {'teacher_out': teacher_out.shape,
+                     'student_out': student_out.shape}
+        if utils.is_main_process():
+            with (Path(args.output_dir) / "log.txt").open("a") as f:
+                f.write(json.dumps(log_stats) + "\n")
         for iq, q in enumerate(teacher_out):
             for v in range(len(student_out)):
                 if v == iq:
                     # we skip cases where student and teacher operate on the same view
                     continue
+
                 loss = torch.sum(-q * F.log_softmax(student_out[v], dim=-1), dim=-1)
                 total_loss += loss.mean()
                 n_loss_terms += 1
