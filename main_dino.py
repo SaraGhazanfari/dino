@@ -395,7 +395,11 @@ class DINOLoss(nn.Module):
         total_loss = 0
         n_loss_terms = 0
         log_stats = {'teacher_out': teacher_out[0].shape,
-                     'student_out': student_out.shape}
+                     'student_out': student_out[0].shape,
+                     'len_teacher_out': len(teacher_out),
+                     'len_student_out': len(student_out),
+                     }
+
         if utils.is_main_process():
             with (Path(args.output_dir) / "log.txt").open("a") as f:
                 f.write(json.dumps(log_stats) + "\n")
