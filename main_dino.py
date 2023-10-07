@@ -401,7 +401,7 @@ class DINOLoss(nn.Module):
                      }
 
         if utils.is_main_process():
-            with (Path(args.output_dir) / "log.txt").open("a") as f:
+            with (Path('/scratch/sg7457/code/dino/logs') / "log.txt").open("a") as f:
                 f.write(json.dumps(log_stats) + "\n")
         for iq, q in enumerate(teacher_out):
             for v in range(len(student_out)):
