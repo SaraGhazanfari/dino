@@ -136,6 +136,7 @@ def train_dino(args):
     utils.fix_random_seeds(args.seed)
     print("git:\n  {}\n".format(utils.get_sha()))
     print("\n".join("%s: %s" % (k, str(v)) for k, v in sorted(dict(vars(args)).items())))
+    sys.stdout.flush()
     cudnn.benchmark = True
 
     # ============ preparing data ... ============
@@ -155,7 +156,7 @@ def train_dino(args):
         drop_last=True,
     )
     print(f"Data loaded: there are {len(dataset)} images.")
-
+    sys.stdout.flush()
     # ============ building student and teacher networks ... ============
     # we changed the name DeiT-S for ViT-S to avoid confusions
     args.arch = args.arch.replace("deit", "vit")
@@ -182,7 +183,7 @@ def train_dino(args):
         embed_dim = student.fc.weight.shape[1]
     else:
         print(f"Unknow architecture: {args.arch}")
-
+        sys.stdout.flush()
     # multi-crop wrapper handles forward with inputs of different resolutions
     # todo utils.MultiCropWrapper(student, DINOHead(
     #     embed_dim,
@@ -220,7 +221,7 @@ def train_dino(args):
     for p in teacher.parameters():
         p.requires_grad = False
     print(f"Student and Teacher are built: they are both {args.arch} network.")
-
+    sys.stdout.flush()
     # ============ preparing loss ... ============
     dino_loss = DINOLoss(
         args.out_dim,
@@ -260,7 +261,7 @@ def train_dino(args):
     momentum_schedule = utils.cosine_scheduler(args.momentum_teacher, 1,
                                                args.epochs, len(data_loader))
     print(f"Loss, optimizer and schedulers ready.")
-
+    sys.stdout.flush()
     # ============ optionally resume training ... ============
     to_restore = {"epoch": 0}
     utils.restart_from_checkpoint(
@@ -276,6 +277,7 @@ def train_dino(args):
 
     start_time = time.time()
     print("Starting DINO training !")
+    sys.stdout.flush()
     for epoch in range(start_epoch, args.epochs):
         #todo data_loader.sampler.set_epoch(epoch)
 
@@ -306,7 +308,7 @@ def train_dino(args):
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     print('Training time {}'.format(total_time_str))
-
+    sys.stdout.flush()
 
 def train_one_epoch(student, teacher, teacher_without_ddp, dino_loss, data_loader,
                     optimizer, lr_schedule, wd_schedule, momentum_schedule, epoch,
@@ -332,6 +334,7 @@ def train_one_epoch(student, teacher, teacher_without_ddp, dino_loss, data_loade
 
         if not math.isfinite(loss.item()):
             print("Loss is {}, stopping training".format(loss.item()), force=True)
+            sys.stdout.flush()
             sys.exit(1)
 
         # student update
@@ -368,6 +371,7 @@ def train_one_epoch(student, teacher, teacher_without_ddp, dino_loss, data_loade
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
     print("Averaged stats:", metric_logger)
+    sys.stdout.flush()
     return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
 
 
