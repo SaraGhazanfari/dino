@@ -302,7 +302,7 @@ def train_dino(args):
             utils.save_on_master(save_dict, os.path.join(args.output_dir, f'checkpoint{epoch:04}.pth'))
         log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
                      'epoch': epoch}
-        print(utils.is_main_process())
+
         if utils.is_main_process():
             print(Path(args.output_dir) / "log.txt")
             print(log_stats)
