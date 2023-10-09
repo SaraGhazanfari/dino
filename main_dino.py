@@ -206,12 +206,14 @@ def train_dino(args):
         teacher = nn.SyncBatchNorm.convert_sync_batchnorm(teacher)
 
         # we need DDP wrapper to have synchro batch norms working...
-        teacher = nn.parallel.DistributedDataParallel(teacher, device_ids=[0, 1, 2, 3])
+        # todo teacher = nn.parallel.DistributedDataParallel(teacher, device_ids=args.gpu)
+        teacher = nn.DataParellel(teacher, device_ids=[0, 1, 2, 3])
         teacher_without_ddp = teacher.module
     else:
         # teacher_without_ddp and teacher are the same thing
         teacher_without_ddp = teacher
-    student = nn.parallel.DistributedDataParallel(student, device_ids=[0, 1, 2, 3])
+    #todo student = nn.parallel.DistributedDataParallel(student, device_ids=args.gpu)
+    student = nn.DataParallel(student, device_ids=[0, 1, 2, 3])
     # teacher and student start with the same weights
     teacher_without_ddp.load_state_dict(student.module.state_dict())
     # there is no backpropagation through the teacher, so no need for gradients
@@ -275,7 +277,7 @@ def train_dino(args):
     start_time = time.time()
     print("Starting DINO training !")
     for epoch in range(start_epoch, args.epochs):
-        data_loader.sampler.set_epoch(epoch)
+        #todo data_loader.sampler.set_epoch(epoch)
 
         # ============ training one epoch of DINO ... ============
         train_stats = train_one_epoch(student, teacher, teacher_without_ddp, dino_loss,
