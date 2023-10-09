@@ -161,7 +161,7 @@ def train_dino(args):
     args.arch = args.arch.replace("deit", "vit")
     # if the network is a Vision Transformer (i.e. vit_tiny, vit_small, vit_base)
     if args.arch in vits.__dict__.keys():
-        #todo student = vits.__dict__[args.arch](
+        # todo student = vits.__dict__[args.arch](
         #     patch_size=args.patch_size,
         #     drop_path_rate=args.drop_path_rate,  # stochastic depth
         # )
@@ -170,7 +170,7 @@ def train_dino(args):
         embed_dim = student.embed_dim
     # if the network is a XCiT
     elif args.arch in torch.hub.list("facebookresearch/xcit:main"):
-        #todo student = torch.hub.load('facebookresearch/xcit:main', args.arch,
+        # todo student = torch.hub.load('facebookresearch/xcit:main', args.arch,
         #                        pretrained=False, drop_path_rate=args.drop_path_rate)
         student = torch.hub.load('facebookresearch/xcit:main', args.arch, pretrained=False)
         teacher = torch.hub.load('facebookresearch/xcit:main', args.arch, pretrained=False)
@@ -206,12 +206,12 @@ def train_dino(args):
         teacher = nn.SyncBatchNorm.convert_sync_batchnorm(teacher)
 
         # we need DDP wrapper to have synchro batch norms working...
-        teacher = nn.parallel.DistributedDataParallel(teacher, device_ids=[args.gpu])
+        teacher = nn.parallel.DistributedDataParallel(teacher, device_ids=[0, 1, 2, 3])
         teacher_without_ddp = teacher.module
     else:
         # teacher_without_ddp and teacher are the same thing
         teacher_without_ddp = teacher
-    student = nn.parallel.DistributedDataParallel(student, device_ids=[args.gpu])
+    student = nn.parallel.DistributedDataParallel(student, device_ids=[0, 1, 2, 3])
     # teacher and student start with the same weights
     teacher_without_ddp.load_state_dict(student.module.state_dict())
     # there is no backpropagation through the teacher, so no need for gradients
@@ -391,7 +391,7 @@ class DINOLoss(nn.Module):
         Cross-entropy between softmax outputs of the teacher and student networks.
         """
         student_out = student_output / self.student_temp
-        student_out = student_out.chunk(2) #todo student_out.chunk(self.ncrops)
+        student_out = student_out.chunk(2)  # todo student_out.chunk(self.ncrops)
 
         # teacher centering and sharpening
         temp = self.teacher_temp_schedule[epoch]
