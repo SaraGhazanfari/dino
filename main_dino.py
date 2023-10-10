@@ -126,6 +126,7 @@ def get_args_parser():
     parser.add_argument("--dist_url", default="env://", type=str, help="""url used to set up
         distributed training; see https://pytorch.org/docs/stable/distributed.html""")
     parser.add_argument("--local_rank", default=0, type=int, help="Please ignore and do not set this argument.")
+    parser.add_argument('--subset', default=6, type=int, help='determines the portion of dataset to be used for training')
     return parser
 
 
@@ -144,8 +145,10 @@ def train_dino(args):
     )
     dataset = datasets.ImageFolder(args.data_path, transform=transform)
     sampler = torch.utils.data.DistributedSampler(dataset, shuffle=True)
+    subset_idx = list(range(0, len(dataset), args.subset))
+    subset_of_dataset = torch.utils.data.Subset(dataset, subset_idx)
     data_loader = torch.utils.data.DataLoader(
-        dataset,
+        subset_of_dataset,
         sampler=sampler,
         batch_size=args.batch_size_per_gpu,
         num_workers=args.num_workers,
