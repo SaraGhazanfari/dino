@@ -285,8 +285,8 @@ def train_dino(args):
             backbone_param += param.data.numel()
         else:
             head_param += param.data.numel()
-
-    print(f"Starting DINO training ! with {param_num}")
+    print(f'{backbone_param} backbone parameters, {head_param} head parameters')
+    print(f"Starting DINO training ! with total {param_num} parameters")
     sys.stdout.flush()
     for epoch in range(start_epoch, args.epochs):
         data_loader.sampler.set_epoch(epoch)
