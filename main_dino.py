@@ -274,7 +274,7 @@ def train_dino(args):
         dino_loss=dino_loss,
     )
     start_epoch = to_restore["epoch"]
-    param_num = sum(p.numel() for p in student.parameters() if p.requires_grad and )
+    param_num = sum(p.numel() for p in student.parameters() if p.requires_grad)
     start_time = time.time()
     for name, param in student.named_parameters():
         if param.requires_grad:
