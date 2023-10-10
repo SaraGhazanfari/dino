@@ -162,18 +162,18 @@ def train_dino(args):
     args.arch = args.arch.replace("deit", "vit")
     # if the network is a Vision Transformer (i.e. vit_tiny, vit_small, vit_base)
     if args.arch in vits.__dict__.keys():
-        # todo student = vits.__dict__[args.arch](
-        #     patch_size=args.patch_size,
-        #     drop_path_rate=args.drop_path_rate,  # stochastic depth
-        # )
-        student = vits.__dict__[args.arch](patch_size=args.patch_size)
+        student = vits.__dict__[args.arch](
+            patch_size=args.patch_size,
+            drop_path_rate=args.drop_path_rate,  # stochastic depth
+        )
+        # student = vits.__dict__[args.arch](patch_size=args.patch_size)
         teacher = vits.__dict__[args.arch](patch_size=args.patch_size)
         embed_dim = student.embed_dim
     # if the network is a XCiT
     elif args.arch in torch.hub.list("facebookresearch/xcit:main"):
-        # todo student = torch.hub.load('facebookresearch/xcit:main', args.arch,
-        #                        pretrained=False, drop_path_rate=args.drop_path_rate)
-        student = torch.hub.load('facebookresearch/xcit:main', args.arch, pretrained=False)
+        student = torch.hub.load('facebookresearch/xcit:main', args.arch,
+                                 pretrained=False, drop_path_rate=args.drop_path_rate)
+        # student = torch.hub.load('facebookresearch/xcit:main', args.arch, pretrained=False)
         teacher = torch.hub.load('facebookresearch/xcit:main', args.arch, pretrained=False)
         embed_dim = student.embed_dim
     # otherwise, we check if the architecture is in torchvision models
@@ -185,16 +185,16 @@ def train_dino(args):
         print(f"Unknow architecture: {args.arch}")
         sys.stdout.flush()
     # multi-crop wrapper handles forward with inputs of different resolutions
-    # todo utils.MultiCropWrapper(student, DINOHead(
-    #     embed_dim,
-    #     args.out_dim,
-    #     use_bn=args.use_bn_in_head,
-    #     norm_last_layer=args.norm_last_layer,
-    # ))
-    student = utils.MultiCropWrapper(
-        student,
-        DINOHead(embed_dim, args.out_dim, args.use_bn_in_head),
-    )
+    student = utils.MultiCropWrapper(student, DINOHead(
+        embed_dim,
+        args.out_dim,
+        use_bn=args.use_bn_in_head,
+        norm_last_layer=args.norm_last_layer,
+    ))
+    # student = utils.MultiCropWrapper(
+    #     student,
+    #     DINOHead(embed_dim, args.out_dim, args.use_bn_in_head),
+    # )
     teacher = utils.MultiCropWrapper(
         teacher,
         DINOHead(embed_dim, args.out_dim, args.use_bn_in_head),
@@ -274,9 +274,9 @@ def train_dino(args):
         dino_loss=dino_loss,
     )
     start_epoch = to_restore["epoch"]
-
+    param_num = sum(p.numel() for p in student.parameters() if p.requires_grad)
     start_time = time.time()
-    print("Starting DINO training !")
+    print(f"Starting DINO training ! with {param_num}")
     sys.stdout.flush()
     for epoch in range(start_epoch, args.epochs):
         data_loader.sampler.set_epoch(epoch)
@@ -313,6 +313,7 @@ def train_dino(args):
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     print('Training time {}'.format(total_time_str))
     sys.stdout.flush()
+
 
 def train_one_epoch(student, teacher, teacher_without_ddp, dino_loss, data_loader,
                     optimizer, lr_schedule, wd_schedule, momentum_schedule, epoch,
@@ -401,7 +402,7 @@ class DINOLoss(nn.Module):
         Cross-entropy between softmax outputs of the teacher and student networks.
         """
         student_out = student_output / self.student_temp
-        student_out = student_out.chunk(2)  # todo student_out.chunk(self.ncrops)
+        student_out = student_out.chunk(self.ncrops)
 
         # teacher centering and sharpening
         temp = self.teacher_temp_schedule[epoch]
