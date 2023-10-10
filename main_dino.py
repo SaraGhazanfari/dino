@@ -43,7 +43,7 @@ def get_args_parser():
     parser = argparse.ArgumentParser('DINO', add_help=False)
 
     # Model parameters
-    parser.add_argument('--arch', default='vit_tiny', type=str,
+    parser.add_argument('--arch', default='vit_small', type=str,
                         choices=['vit_tiny', 'vit_small', 'vit_base', 'xcit', 'deit_tiny', 'deit_small'] \
                                 + torchvision_archs + torch.hub.list("facebookresearch/xcit:main"),
                         help="""Name of architecture to train. For quick experiments with ViTs,
