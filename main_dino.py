@@ -274,10 +274,12 @@ def train_dino(args):
         dino_loss=dino_loss,
     )
     start_epoch = to_restore["epoch"]
-    param_num = sum(p.numel() for p in student.parameters() if p.requires_grad)
+    param_num = sum(p.numel() for p in student.parameters() if p.requires_grad and )
     start_time = time.time()
-    for name, layer in student.named_modules():
-        print(name, layer)
+    for name, param in student.named_parameters():
+        if param.requires_grad:
+            print(name, param.data.numel())
+
     print(f"Starting DINO training ! with {param_num}")
     sys.stdout.flush()
     for epoch in range(start_epoch, args.epochs):
