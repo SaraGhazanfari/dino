@@ -274,11 +274,17 @@ def train_dino(args):
         dino_loss=dino_loss,
     )
     start_epoch = to_restore["epoch"]
+
     param_num = sum(p.numel() for p in student.parameters() if p.requires_grad)
     start_time = time.time()
+    backbone_param, head_param = 0, 0
     for name, param in student.named_parameters():
         if param.requires_grad:
             print(name, param.data.numel())
+        if 'backbone' in name:
+            backbone_param += param.data.numel()
+        else:
+            head_param += param.data.numel()
 
     print(f"Starting DINO training ! with {param_num}")
     sys.stdout.flush()
