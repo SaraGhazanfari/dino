@@ -276,7 +276,8 @@ def train_dino(args):
     start_epoch = to_restore["epoch"]
     param_num = sum(p.numel() for p in student.parameters() if p.requires_grad)
     start_time = time.time()
-    print(student.parameters())
+    for p in student.parameters():
+        print(p)
     print(f"Starting DINO training ! with {param_num}")
     sys.stdout.flush()
     for epoch in range(start_epoch, args.epochs):
