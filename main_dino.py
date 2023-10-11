@@ -145,8 +145,7 @@ def train_dino(args):
     )
     dataset = datasets.ImageFolder(args.data_path, transform=transform)
     sampler = torch.utils.data.DistributedSampler(dataset, shuffle=True)
-    subset_idx = list(range(0, len(dataset), args.subset))
-    subset_of_dataset = torch.utils.data.Subset(dataset, subset_idx)
+    subset_of_dataset = torch.utils.data.Subset(dataset, range(0, len(dataset), args.subset))
     data_loader = torch.utils.data.DataLoader(
         subset_of_dataset,
         sampler=sampler,
