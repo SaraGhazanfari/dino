@@ -134,29 +134,29 @@ def get_args_parser():
 
 
 def train_dino(args):
-    # utils.init_distributed_mode(args)
-    # utils.fix_random_seeds(args.seed)
-    # print("git:\n  {}\n".format(utils.get_sha()))
-    # print("\n".join("%s: %s" % (k, str(v)) for k, v in sorted(dict(vars(args)).items())))
-    # cudnn.benchmark = True
+    utils.init_distributed_mode(args)
+    utils.fix_random_seeds(args.seed)
+    print("git:\n  {}\n".format(utils.get_sha()))
+    print("\n".join("%s: %s" % (k, str(v)) for k, v in sorted(dict(vars(args)).items())))
+    cudnn.benchmark = True
 
     # ============ preparing data ... ============
-    # transform = DataAugmentationDINO(
-    #     args.global_crops_scale,
-    #     args.local_crops_scale,
-    #     args.local_crops_number,
-    # )
-    # dataset = datasets.ImageFolder(args.data_path, transform=transform)
-    # subset_of_dataset = torch.utils.data.Subset(dataset, range(0, len(dataset), args.subset))
-    # sampler = torch.utils.data.DistributedSampler(subset_of_dataset, shuffle=True)
-    # data_loader = torch.utils.data.DataLoader(
-    #     subset_of_dataset,
-    #     sampler=sampler,
-    #     batch_size=args.batch_size_per_gpu,
-    #     num_workers=args.num_workers,
-    #     pin_memory=True,
-    #     drop_last=True,
-    # )
+    transform = DataAugmentationDINO(
+        args.global_crops_scale,
+        args.local_crops_scale,
+        args.local_crops_number,
+    )
+    dataset = datasets.ImageFolder(args.data_path, transform=transform)
+    subset_of_dataset = torch.utils.data.Subset(dataset, range(0, len(dataset), args.subset))
+    sampler = torch.utils.data.DistributedSampler(subset_of_dataset, shuffle=True)
+    data_loader = torch.utils.data.DataLoader(
+        subset_of_dataset,
+        sampler=sampler,
+        batch_size=args.batch_size_per_gpu,
+        num_workers=args.num_workers,
+        pin_memory=True,
+        drop_last=True,
+    )
     # print(f"Data loaded: there are {len(subset_of_dataset)} images.")
 
     # ============ building student and teacher networks ... ============
@@ -198,76 +198,76 @@ def train_dino(args):
     # move networks to gpu
     student, teacher = student.cuda(), teacher.cuda()
     # synchronize batch norms (if any)
-    # if utils.has_batchnorms(student):
-    #     student = nn.SyncBatchNorm.convert_sync_batchnorm(student)
-    #     teacher = nn.SyncBatchNorm.convert_sync_batchnorm(teacher)
-    #
-    #     # we need DDP wrapper to have synchro batch norms working...
-    #     teacher = nn.parallel.DistributedDataParallel(teacher, device_ids=[args.gpu])
-    #     teacher_without_ddp = teacher.module
-    # else:
-    #     # teacher_without_ddp and teacher are the same thing
-    #     teacher_without_ddp = teacher
-    # student = nn.parallel.DistributedDataParallel(student, device_ids=[args.gpu])
-    # # teacher and student start with the same weights
-    # teacher_without_ddp.load_state_dict(student.module.state_dict())
-    # # there is no backpropagation through the teacher, so no need for gradients
-    # for p in teacher.parameters():
-    #     p.requires_grad = False
-    # print(f"Student and Teacher are built: they are both {args.arch} network.")
-    #
+    if utils.has_batchnorms(student):
+        student = nn.SyncBatchNorm.convert_sync_batchnorm(student)
+        teacher = nn.SyncBatchNorm.convert_sync_batchnorm(teacher)
+
+        # we need DDP wrapper to have synchro batch norms working...
+        teacher = nn.parallel.DistributedDataParallel(teacher, device_ids=[args.gpu])
+        teacher_without_ddp = teacher.module
+    else:
+        # teacher_without_ddp and teacher are the same thing
+        teacher_without_ddp = teacher
+    student = nn.parallel.DistributedDataParallel(student, device_ids=[args.gpu])
+    # teacher and student start with the same weights
+    teacher_without_ddp.load_state_dict(student.module.state_dict())
+    # there is no backpropagation through the teacher, so no need for gradients
+    for p in teacher.parameters():
+        p.requires_grad = False
+    print(f"Student and Teacher are built: they are both {args.arch} network.")
+
     # # ============ preparing loss ... ============
-    # dino_loss = DINOLoss(
-    #     args.out_dim,
-    #     args.local_crops_number + 2,  # total number of crops = 2 global crops + local_crops_number
-    #     args.warmup_teacher_temp,
-    #     args.teacher_temp,
-    #     args.warmup_teacher_temp_epochs,
-    #     args.epochs,
-    # ).cuda()
-    #
+    dino_loss = DINOLoss(
+        args.out_dim,
+        args.local_crops_number + 2,  # total number of crops = 2 global crops + local_crops_number
+        args.warmup_teacher_temp,
+        args.teacher_temp,
+        args.warmup_teacher_temp_epochs,
+        args.epochs,
+    ).cuda()
+
     # # ============ preparing optimizer ... ============
-    # params_groups = utils.get_params_groups(student)
-    # if args.optimizer == "adamw":
-    #     optimizer = torch.optim.AdamW(params_groups)  # to use with ViTs
-    # elif args.optimizer == "sgd":
-    #     optimizer = torch.optim.SGD(params_groups, lr=0, momentum=0.9)  # lr is set by scheduler
-    # elif args.optimizer == "lars":
-    #     optimizer = utils.LARS(params_groups)  # to use with convnet and large batches
-    # # for mixed precision training
-    # fp16_scaler = None
-    # if args.use_fp16:
-    #     fp16_scaler = torch.cuda.amp.GradScaler()
-    #
+    params_groups = utils.get_params_groups(student)
+    if args.optimizer == "adamw":
+        optimizer = torch.optim.AdamW(params_groups)  # to use with ViTs
+    elif args.optimizer == "sgd":
+        optimizer = torch.optim.SGD(params_groups, lr=0, momentum=0.9)  # lr is set by scheduler
+    elif args.optimizer == "lars":
+        optimizer = utils.LARS(params_groups)  # to use with convnet and large batches
+    # for mixed precision training
+    fp16_scaler = None
+    if args.use_fp16:
+        fp16_scaler = torch.cuda.amp.GradScaler()
+
     # # ============ init schedulers ... ============
-    # lr_schedule = utils.cosine_scheduler(
-    #     args.lr * (args.batch_size_per_gpu * utils.get_world_size()) / 256.,  # linear scaling rule
-    #     args.min_lr,
-    #     args.epochs, len(data_loader),
-    #     warmup_epochs=args.warmup_epochs,
-    # )
-    # wd_schedule = utils.cosine_scheduler(
-    #     args.weight_decay,
-    #     args.weight_decay_end,
-    #     args.epochs, len(data_loader),
-    # )
-    # # momentum parameter is increased to 1. during training with a cosine schedule
-    # momentum_schedule = utils.cosine_scheduler(args.momentum_teacher, 1,
-    #                                            args.epochs, len(data_loader))
-    # print(f"Loss, optimizer and schedulers ready.")
-    #
-    # # ============ optionally resume training ... ============
-    # to_restore = {"epoch": 0}
-    # utils.restart_from_checkpoint(
-    #     os.path.join(args.output_dir, "checkpoint.pth"),
-    #     run_variables=to_restore,
-    #     student=student,
-    #     teacher=teacher,
-    #     optimizer=optimizer,
-    #     fp16_scaler=fp16_scaler,
-    #     dino_loss=dino_loss,
-    # )
-    # start_epoch = to_restore["epoch"]
+    lr_schedule = utils.cosine_scheduler(
+        args.lr * (args.batch_size_per_gpu * utils.get_world_size()) / 256.,  # linear scaling rule
+        args.min_lr,
+        args.epochs, len(data_loader),
+        warmup_epochs=args.warmup_epochs,
+    )
+    wd_schedule = utils.cosine_scheduler(
+        args.weight_decay,
+        args.weight_decay_end,
+        args.epochs, len(data_loader),
+    )
+    # momentum parameter is increased to 1. during training with a cosine schedule
+    momentum_schedule = utils.cosine_scheduler(args.momentum_teacher, 1,
+                                               args.epochs, len(data_loader))
+    print(f"Loss, optimizer and schedulers ready.")
+
+    # ============ optionally resume training ... ============
+    to_restore = {"epoch": 0}
+    utils.restart_from_checkpoint(
+        os.path.join(args.output_dir, "checkpoint.pth"),
+        run_variables=to_restore,
+        student=student,
+        teacher=teacher,
+        optimizer=optimizer,
+        fp16_scaler=fp16_scaler,
+        dino_loss=dino_loss,
+    )
+    start_epoch = to_restore["epoch"]
 
     param_num = sum(p.numel() for p in student.parameters() if p.requires_grad)
     start_time = time.time()
