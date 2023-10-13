@@ -141,23 +141,23 @@ def train_dino(args):
     # cudnn.benchmark = True
 
     # ============ preparing data ... ============
-    transform = DataAugmentationDINO(
-        args.global_crops_scale,
-        args.local_crops_scale,
-        args.local_crops_number,
-    )
-    dataset = datasets.ImageFolder(args.data_path, transform=transform)
-    subset_of_dataset = torch.utils.data.Subset(dataset, range(0, len(dataset), args.subset))
-    sampler = torch.utils.data.DistributedSampler(subset_of_dataset, shuffle=True)
-    data_loader = torch.utils.data.DataLoader(
-        subset_of_dataset,
-        sampler=sampler,
-        batch_size=args.batch_size_per_gpu,
-        num_workers=args.num_workers,
-        pin_memory=True,
-        drop_last=True,
-    )
-    print(f"Data loaded: there are {len(subset_of_dataset)} images.")
+    # transform = DataAugmentationDINO(
+    #     args.global_crops_scale,
+    #     args.local_crops_scale,
+    #     args.local_crops_number,
+    # )
+    # dataset = datasets.ImageFolder(args.data_path, transform=transform)
+    # subset_of_dataset = torch.utils.data.Subset(dataset, range(0, len(dataset), args.subset))
+    # sampler = torch.utils.data.DistributedSampler(subset_of_dataset, shuffle=True)
+    # data_loader = torch.utils.data.DataLoader(
+    #     subset_of_dataset,
+    #     sampler=sampler,
+    #     batch_size=args.batch_size_per_gpu,
+    #     num_workers=args.num_workers,
+    #     pin_memory=True,
+    #     drop_last=True,
+    # )
+    # print(f"Data loaded: there are {len(subset_of_dataset)} images.")
 
     # ============ building student and teacher networks ... ============
     # we changed the name DeiT-S for ViT-S to avoid confusions
