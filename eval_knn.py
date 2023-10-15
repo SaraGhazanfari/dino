@@ -25,10 +25,51 @@ from torchvision import models as torchvision_models
 
 import utils
 import vision_transformer as vits
+from attack.attack import generate_attack
 
 
-def extract_feature_pipeline(args):
-    # ============ preparing data ... ============
+def extract_feature_pipeline(args, model):
+    # ============ extract features ... ============
+    print("Extracting features for train set...")
+    train_features = extract_features(model, data_loader_train, args.use_cuda)
+    print("Extracting features for val set...")
+    test_features = extract_features(model, data_loader_val, args.use_cuda)
+
+    if utils.get_rank() == 0:
+        train_features = nn.functional.normalize(train_features, dim=1, p=2)
+        test_features = nn.functional.normalize(test_features, dim=1, p=2)
+
+    train_labels = torch.tensor([s[-1] for s in dataset_train.samples]).long()
+    test_labels = torch.tensor([s[-1] for s in dataset_val.samples]).long()
+    # save features and labels
+    if args.dump_features and dist.get_rank() == 0:
+        torch.save(train_features.cpu(), os.path.join(args.dump_features, "trainfeat.pth"))
+        torch.save(test_features.cpu(), os.path.join(args.dump_features, "testfeat.pth"))
+        torch.save(train_labels.cpu(), os.path.join(args.dump_features, "trainlabels.pth"))
+        torch.save(test_labels.cpu(), os.path.join(args.dump_features, "testlabels.pth"))
+    return train_features, test_features, train_labels, test_labels
+
+
+def get_model(args):
+    # ============ building network ... ============
+    if "vit" in args.arch:
+        model = vits.__dict__[args.arch](patch_size=args.patch_size, num_classes=0)
+        print(f"Model {args.arch} {args.patch_size}x{args.patch_size} built.")
+    elif "xcit" in args.arch:
+        model = torch.hub.load('facebookresearch/xcit:main', args.arch, num_classes=0)
+    elif args.arch in torchvision_models.__dict__.keys():
+        model = torchvision_models.__dict__[args.arch](num_classes=0)
+        model.fc = nn.Identity()
+    else:
+        print(f"Architecture {args.arch} non supported")
+        sys.exit(1)
+    model.cuda()
+    utils.load_pretrained_weights(model, args.pretrained_weights, args.checkpoint_key, args.arch, args.patch_size)
+    model.eval()
+    return model
+
+
+def get_data(args):
     transform = pth_transforms.Compose([
         pth_transforms.Resize(256, interpolation=3),
         pth_transforms.CenterCrop(224),
@@ -53,43 +94,7 @@ def extract_feature_pipeline(args):
         pin_memory=True,
         drop_last=False,
     )
-    print(f"Data loaded with {len(dataset_train)} train and {len(dataset_val)} val imgs.")
-
-    # ============ building network ... ============
-    if "vit" in args.arch:
-        model = vits.__dict__[args.arch](patch_size=args.patch_size, num_classes=0)
-        print(f"Model {args.arch} {args.patch_size}x{args.patch_size} built.")
-    elif "xcit" in args.arch:
-        model = torch.hub.load('facebookresearch/xcit:main', args.arch, num_classes=0)
-    elif args.arch in torchvision_models.__dict__.keys():
-        model = torchvision_models.__dict__[args.arch](num_classes=0)
-        model.fc = nn.Identity()
-    else:
-        print(f"Architecture {args.arch} non supported")
-        sys.exit(1)
-    model.cuda()
-    utils.load_pretrained_weights(model, args.pretrained_weights, args.checkpoint_key, args.arch, args.patch_size)
-    model.eval()
-
-    # ============ extract features ... ============
-    print("Extracting features for train set...")
-    train_features = extract_features(model, data_loader_train, args.use_cuda)
-    print("Extracting features for val set...")
-    test_features = extract_features(model, data_loader_val, args.use_cuda)
-
-    if utils.get_rank() == 0:
-        train_features = nn.functional.normalize(train_features, dim=1, p=2)
-        test_features = nn.functional.normalize(test_features, dim=1, p=2)
-
-    train_labels = torch.tensor([s[-1] for s in dataset_train.samples]).long()
-    test_labels = torch.tensor([s[-1] for s in dataset_val.samples]).long()
-    # save features and labels
-    if args.dump_features and dist.get_rank() == 0:
-        torch.save(train_features.cpu(), os.path.join(args.dump_features, "trainfeat.pth"))
-        torch.save(test_features.cpu(), os.path.join(args.dump_features, "testfeat.pth"))
-        torch.save(train_labels.cpu(), os.path.join(args.dump_features, "trainlabels.pth"))
-        torch.save(test_labels.cpu(), os.path.join(args.dump_features, "testlabels.pth"))
-    return train_features, test_features, train_labels, test_labels
+    return data_loader_train, data_loader_val, dataset_train, dataset_val
 
 
 @torch.no_grad()
@@ -140,7 +145,8 @@ def extract_features(model, data_loader, use_cuda=True, multiscale=False):
 
 
 @torch.no_grad()
-def knn_classifier(train_features, train_labels, test_features, test_labels, k, T, num_classes=1000):
+def knn_classifier(train_features, train_labels, test_features, test_labels, k, args, model, dataset_val,
+                   num_classes=1000):
     top1, top5, total = 0.0, 0.0, 0
     train_features = train_features.t()
     num_test_images, num_chunks = test_labels.shape[0], 100
@@ -148,10 +154,17 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
     retrieval_one_hot = torch.zeros(k, num_classes).to(train_features.device)
     for idx in range(0, num_test_images, imgs_per_chunk):
         # get the features for test images
-        features = test_features[
-            idx : min((idx + imgs_per_chunk), num_test_images), :
-        ]
-        targets = test_labels[idx : min((idx + imgs_per_chunk), num_test_images)]
+        targets = test_labels[idx: min((idx + imgs_per_chunk), num_test_images)]
+
+        x = dataset_val[idx: min((idx + imgs_per_chunk), num_test_images)][0]
+        if args.attack:
+            features = model(
+                generate_attack(attack=args.attack, eps=args.eps, model=model, x=x, target=targets)).clone()
+        else:
+            features = test_features[
+                       idx: min((idx + imgs_per_chunk), num_test_images), :
+                       ]
+
         batch_size = targets.shape[0]
 
         # calculate the dot product and compute top-k neighbors
@@ -162,7 +175,7 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
 
         retrieval_one_hot.resize_(batch_size * k, num_classes).zero_()
         retrieval_one_hot.scatter_(1, retrieved_neighbors.view(-1, 1), 1)
-        distances_transform = distances.clone().div_(T).exp_()
+        distances_transform = distances.clone().div_(args.temperature).exp_()
         probs = torch.sum(
             torch.mul(
                 retrieval_one_hot.view(batch_size, -1, num_classes),
@@ -192,18 +205,18 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser('Evaluation with weighted k-NN on ImageNet')
     parser.add_argument('--batch_size_per_gpu', default=128, type=int, help='Per-GPU batch-size')
     parser.add_argument('--nb_knn', default=[10, 20, 100, 200], nargs='+', type=int,
-        help='Number of NN to use. 20 is usually working the best.')
+                        help='Number of NN to use. 20 is usually working the best.')
     parser.add_argument('--temperature', default=0.07, type=float,
-        help='Temperature used in the voting coefficient')
+                        help='Temperature used in the voting coefficient')
     parser.add_argument('--pretrained_weights', default='', type=str, help="Path to pretrained weights to evaluate.")
     parser.add_argument('--use_cuda', default=True, type=utils.bool_flag,
-        help="Should we store the features on GPU? We recommend setting this to False if you encounter OOM")
+                        help="Should we store the features on GPU? We recommend setting this to False if you encounter OOM")
     parser.add_argument('--arch', default='vit_small', type=str, help='Architecture')
     parser.add_argument('--patch_size', default=16, type=int, help='Patch resolution of the model.')
     parser.add_argument("--checkpoint_key", default="teacher", type=str,
-        help='Key to use in the checkpoint (example: "teacher")')
+                        help='Key to use in the checkpoint (example: "teacher")')
     parser.add_argument('--dump_features', default=None,
-        help='Path where to save computed features, empty for no saving')
+                        help='Path where to save computed features, empty for no saving')
     parser.add_argument('--load_features', default=None, help="""If the features have
         already been computed, where to find them.""")
     parser.add_argument('--num_workers', default=10, type=int, help='Number of data loading workers per GPU.')
@@ -211,12 +224,21 @@ if __name__ == '__main__':
         distributed training; see https://pytorch.org/docs/stable/distributed.html""")
     parser.add_argument("--local_rank", default=0, type=int, help="Please ignore and do not set this argument.")
     parser.add_argument('--data_path', default='/path/to/imagenet/', type=str)
+
+    parser.add_argument("--attack", default=None, type=str, help='Attack L2, Linf')
+    parser.add_argument('--eps', default=1.0, type=float, help='Perturbation budget for attack')
     args = parser.parse_args()
 
     utils.init_distributed_mode(args)
     print("git:\n  {}\n".format(utils.get_sha()))
     print("\n".join("%s: %s" % (k, str(v)) for k, v in sorted(dict(vars(args)).items())))
     cudnn.benchmark = True
+    # ============ preparing data ... ============
+    data_loader_train, data_loader_val, dataset_train, dataset_val = get_data(args)
+    print(f"Data loaded with {len(dataset_train)} train and {len(dataset_val)} val imgs.")
+
+    # ============ preparing model ... ============
+    model = get_model(args)
 
     if args.load_features:
         train_features = torch.load(os.path.join(args.load_features, "trainfeat.pth"))
@@ -225,7 +247,7 @@ if __name__ == '__main__':
         test_labels = torch.load(os.path.join(args.load_features, "testlabels.pth"))
     else:
         # need to extract features !
-        train_features, test_features, train_labels, test_labels = extract_feature_pipeline(args)
+        train_features, test_features, train_labels, test_labels = extract_feature_pipeline(args, model)
 
     if utils.get_rank() == 0:
         if args.use_cuda:
@@ -237,6 +259,6 @@ if __name__ == '__main__':
         print("Features are ready!\nStart the k-NN classification.")
         for k in args.nb_knn:
             top1, top5 = knn_classifier(train_features, train_labels,
-                test_features, test_labels, k, args.temperature)
+                                        test_features, test_labels, k, args, model, dataset_val)
             print(f"{k}-NN classifier result: Top1: {top1}, Top5: {top5}")
     dist.barrier()
