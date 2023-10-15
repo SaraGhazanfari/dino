@@ -136,6 +136,8 @@ def extract_features(model, data_loader, use_cuda=True, multiscale=False):
                 features.index_copy_(0, index_all, torch.cat(output_l))
             else:
                 features.index_copy_(0, index_all.cpu(), torch.cat(output_l).cpu())
+
+        break
     return features
 
 
@@ -149,9 +151,9 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
     for idx in range(0, num_test_images, imgs_per_chunk):
         # get the features for test images
         features = test_features[
-            idx : min((idx + imgs_per_chunk), num_test_images), :
-        ]
-        targets = test_labels[idx : min((idx + imgs_per_chunk), num_test_images)]
+                   idx: min((idx + imgs_per_chunk), num_test_images), :
+                   ]
+        targets = test_labels[idx: min((idx + imgs_per_chunk), num_test_images)]
         batch_size = targets.shape[0]
 
         # calculate the dot product and compute top-k neighbors
@@ -177,6 +179,11 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
         top1 = top1 + correct.narrow(1, 0, 1).sum().item()
         top5 = top5 + correct.narrow(1, 0, min(5, k)).sum().item()  # top5 does not make sense if k < 5
         total += targets.size(0)
+        print('target')
+        print(targets)
+        print('predictions')
+        print(predictions)
+        break
     top1 = top1 * 100.0 / total
     top5 = top5 * 100.0 / total
     return top1, top5
@@ -192,18 +199,18 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser('Evaluation with weighted k-NN on ImageNet')
     parser.add_argument('--batch_size_per_gpu', default=128, type=int, help='Per-GPU batch-size')
     parser.add_argument('--nb_knn', default=[10, 20, 100, 200], nargs='+', type=int,
-        help='Number of NN to use. 20 is usually working the best.')
+                        help='Number of NN to use. 20 is usually working the best.')
     parser.add_argument('--temperature', default=0.07, type=float,
-        help='Temperature used in the voting coefficient')
+                        help='Temperature used in the voting coefficient')
     parser.add_argument('--pretrained_weights', default='', type=str, help="Path to pretrained weights to evaluate.")
     parser.add_argument('--use_cuda', default=True, type=utils.bool_flag,
-        help="Should we store the features on GPU? We recommend setting this to False if you encounter OOM")
+                        help="Should we store the features on GPU? We recommend setting this to False if you encounter OOM")
     parser.add_argument('--arch', default='vit_small', type=str, help='Architecture')
     parser.add_argument('--patch_size', default=16, type=int, help='Patch resolution of the model.')
     parser.add_argument("--checkpoint_key", default="teacher", type=str,
-        help='Key to use in the checkpoint (example: "teacher")')
+                        help='Key to use in the checkpoint (example: "teacher")')
     parser.add_argument('--dump_features', default=None,
-        help='Path where to save computed features, empty for no saving')
+                        help='Path where to save computed features, empty for no saving')
     parser.add_argument('--load_features', default=None, help="""If the features have
         already been computed, where to find them.""")
     parser.add_argument('--num_workers', default=10, type=int, help='Number of data loading workers per GPU.')
@@ -237,6 +244,6 @@ if __name__ == '__main__':
         print("Features are ready!\nStart the k-NN classification.")
         for k in args.nb_knn:
             top1, top5 = knn_classifier(train_features, train_labels,
-                test_features, test_labels, k, args.temperature)
+                                        test_features, test_labels, k, args.temperature)
             print(f"{k}-NN classifier result: Top1: {top1}, Top5: {top5}")
     dist.barrier()
