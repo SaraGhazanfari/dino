@@ -141,6 +141,8 @@ def extract_features(model, data_loader, use_cuda=True, multiscale=False):
                 features.index_copy_(0, index_all, torch.cat(output_l))
             else:
                 features.index_copy_(0, index_all.cpu(), torch.cat(output_l).cpu())
+
+        break
     return features
 
 
@@ -155,7 +157,7 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
     for idx in range(0, num_test_images, imgs_per_chunk):
         # get the features for test images
         targets = test_labels[idx: min((idx + imgs_per_chunk), num_test_images)]
-
+        print(len(dataset_val[idx: min((idx + imgs_per_chunk), num_test_images)][0]))
         x = dataset_val[idx: min((idx + imgs_per_chunk), num_test_images)][0]
         if args.attack:
             features = model(
