@@ -157,7 +157,7 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
     for idx in range(0, num_test_images, imgs_per_chunk):
         # get the features for test images
         targets = test_labels[idx: min((idx + imgs_per_chunk), num_test_images)]
-        print(test_features.shape)
+        print(len(dataset_val[idx: min((idx + imgs_per_chunk), num_test_images)]))
         x = dataset_val[idx: min((idx + imgs_per_chunk), num_test_images)][0]
         if args.attack:
             features = model(
