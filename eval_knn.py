@@ -103,8 +103,11 @@ def get_model(args):
     else:
         print(f"Architecture {args.arch} non supported")
         sys.exit(1)
+
+    # utils.load_pretrained_weights(model, args.pretrained_weights, args.checkpoint_key, args.arch, args.patch_size)
+    checkpoint = torch.load(args.pretrained_weights, map_location="cpu")
+    model.load_state_dict(checkpoint)
     model.cuda()
-    utils.load_pretrained_weights(model, args.pretrained_weights, args.checkpoint_key, args.arch, args.patch_size)
     return model
 
 
