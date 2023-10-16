@@ -33,7 +33,7 @@ def model_wrapper(num_classes, model):
         retrieval_one_hot = torch.zeros(k, num_classes).cuda()
         batch_size = x.shape[0]
         features = model(x)
-        print(model(x).requires_grad)
+        features.requires_grad = True
         similarity = torch.mm(features, torch.t(train_features))
         distances, indices = similarity.topk(k, largest=True, sorted=True)
         candidates = train_labels.view(1, -1).expand(batch_size, -1)
@@ -51,7 +51,7 @@ def model_wrapper(num_classes, model):
         )
         _, predictions = probs.sort(1, True)
         predictions = predictions.double()
-        predictions.requires_grad = True
+
         return predictions
 
     return predict
@@ -95,6 +95,7 @@ def get_model(args):
     else:
         print(f"Architecture {args.arch} non supported")
         sys.exit(1)
+
 
     utils.load_pretrained_weights(model, args.pretrained_weights, args.checkpoint_key, args.arch, args.patch_size)
     model.cuda()
