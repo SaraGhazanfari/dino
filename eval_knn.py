@@ -95,8 +95,7 @@ def get_model(args):
         print(f"Architecture {args.arch} non supported")
         sys.exit(1)
 
-    params_groups = utils.get_params_groups(model)
-    optimizer = torch.optim.AdamW(params_groups)
+    optimizer = torch.optim.AdamW(model.parameters())
     utils.load_pretrained_weights(model, optimizer, args.pretrained_weights, args.checkpoint_key, args.arch, args.patch_size)
     model.cuda()
     return model
