@@ -28,7 +28,7 @@ import vision_transformer as vits
 from attack.attack import generate_attack
 
 
-def model_wrapper(num_classes, model, targets):
+def model_wrapper(num_classes, model):
     def predict(x):
         retrieval_one_hot = torch.zeros(k, num_classes).cuda()
         batch_size = x.shape[0]
@@ -50,9 +50,6 @@ def model_wrapper(num_classes, model, targets):
         )
         _, predictions = probs.sort(1, True)
         predictions = predictions.double()
-        loss = nn.CrossEntropyLoss()(predictions, targets)
-        loss.backward()
-
         return predictions
 
     return predict
