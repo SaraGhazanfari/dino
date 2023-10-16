@@ -34,22 +34,22 @@ def parse_args():
     parser.add_argument("--use_volta32", action='store_true', help="Big models? Use this")
     parser.add_argument('--comment', default="", type=str,
                         help='Comment to pass to scheduler, e.g. priority message')
+    parser.add_argument('--folder', default="", type=str, help='Shared folder')
     return parser.parse_args()
 
 
-def get_shared_folder() -> Path:
-    user = os.getenv("USER")
-    if Path("/scratch/sg7457/code/dino/checkpoint/").is_dir():
-        p = Path(f"/scratch/sg7457/code/dino/checkpoint/experiments")
-        p.mkdir(exist_ok=True)
-        return p
-    raise RuntimeError("No shared folder available")
+# def get_shared_folder(shared_dir) -> Path:
+#     if Path(shared_dir).is_dir():
+#         p = Path(os.path.join(shared_dir,"experiments"))
+#         p.mkdir(exist_ok=True)
+#         return p
+#     raise RuntimeError("No shared folder available")
 
 
-def get_init_file():
+def get_init_file(shared_folder):
     # Init file must not exist, but it's parent dir must exist.
-    os.makedirs(str(get_shared_folder()), exist_ok=True)
-    init_file = get_shared_folder() / f"{uuid.uuid4().hex}_init"
+    os.makedirs(str(shared_folder), exist_ok=True)
+    init_file = shared_folder / f"{uuid.uuid4().hex}_init"
     if init_file.exists():
         os.remove(str(init_file))
     return init_file
@@ -66,10 +66,9 @@ class Trainer(object):
         main_dino.train_dino(self.args)
 
     def checkpoint(self):
-        import os
         import submitit
 
-        self.args.dist_url = get_init_file().as_uri()
+        self.args.dist_url = get_init_file(self.args.folder).as_uri()
         print("Requeuing ", self.args)
         empty_trainer = type(self)(self.args)
         return submitit.helpers.DelayedSubmission(empty_trainer)
@@ -89,7 +88,7 @@ class Trainer(object):
 def main():
     args = parse_args()
     if args.output_dir == "":
-        args.output_dir = get_shared_folder() / "%j"
+        args.output_dir = args.folder / "%j"
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
     executor = submitit.AutoExecutor(folder=args.output_dir, slurm_max_num_timeout=30)
 
@@ -112,14 +111,14 @@ def main():
         nodes=nodes,
         timeout_min=timeout_min,  # max is 60 * 72
         # Below are cluster dependent parameters
-        #slurm_partition=partition,
+        # slurm_partition=partition,
         slurm_signal_delay_s=120,
         **kwargs
     )
 
     executor.update_parameters(name="dino")
 
-    args.dist_url = get_init_file().as_uri()
+    args.dist_url = get_init_file(args.folder).as_uri()
 
     trainer = Trainer(args)
     job = executor.submit(trainer)

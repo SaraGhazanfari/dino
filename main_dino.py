@@ -44,7 +44,7 @@ def get_args_parser():
 
     # Model parameters
     parser.add_argument('--arch', default='vit_small', type=str,
-                        choices=['vit_tiny', 'vit_small', 'vit_base', 'xcit', 'deit_tiny', 'deit_small'] \
+                        choices=['vit_mini', 'vit_tiny', 'vit_small', 'vit_base', 'xcit', 'deit_tiny', 'deit_small'] \
                                 + torchvision_archs + torch.hub.list("facebookresearch/xcit:main"),
                         help="""Name of architecture to train. For quick experiments with ViTs,
         we recommend using vit_tiny or vit_small.""")
@@ -128,7 +128,7 @@ def get_args_parser():
     parser.add_argument("--dist_url", default="env://", type=str, help="""url used to set up
         distributed training; see https://pytorch.org/docs/stable/distributed.html""")
     parser.add_argument("--local_rank", default=0, type=int, help="Please ignore and do not set this argument.")
-    parser.add_argument('--subset', default=6, type=int,
+    parser.add_argument('--subset', default=1, type=float, choices=[0.2, 0.4, 0.6, 0.8, 1.0],
                         help='determines the portion of dataset to be used for training')
     return parser
 
@@ -147,7 +147,7 @@ def train_dino(args):
         args.local_crops_number,
     )
     dataset = datasets.ImageFolder(args.data_path, transform=transform)
-    subset_of_dataset = torch.utils.data.Subset(dataset, range(0, len(dataset), args.subset))
+    subset_of_dataset = torch.utils.data.Subset(dataset, range(0, len(dataset), 1 / args.subset))
     sampler = torch.utils.data.DistributedSampler(subset_of_dataset, shuffle=True)
     data_loader = torch.utils.data.DataLoader(
         subset_of_dataset,
