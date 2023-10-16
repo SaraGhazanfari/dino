@@ -51,7 +51,6 @@ def model_wrapper(num_classes, model):
             1,
         )
         _, predictions = probs.sort(1, True)
-        print(predictions)
         return predictions
 
     return predict
