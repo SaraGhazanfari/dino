@@ -28,6 +28,33 @@ import vision_transformer as vits
 from attack.attack import generate_attack
 
 
+def model_wrapper(num_classes):
+    def predict(x):
+        retrieval_one_hot = torch.zeros(k, num_classes).cuda()
+        batch_size = x.shape[0]
+        features = model(x)
+        similarity = torch.mm(features, train_features)
+        distances, indices = similarity.topk(k, largest=True, sorted=True)
+        candidates = train_labels.view(1, -1).expand(batch_size, -1)
+        retrieved_neighbors = torch.gather(candidates, 1, indices)
+
+        retrieval_one_hot.resize_(batch_size * k, num_classes).zero_()
+        retrieval_one_hot.scatter_(1, retrieved_neighbors.view(-1, 1), 1)
+        distances_transform = distances.clone().div_(args.temperature).exp_()
+        probs = torch.sum(
+            torch.mul(
+                retrieval_one_hot.view(batch_size, -1, num_classes),
+                distances_transform.view(batch_size, -1, 1),
+            ),
+            1,
+        )
+        _, predictions = probs.sort(1, True)
+
+        return predictions
+
+    return predict
+
+
 def extract_feature_pipeline(args, model):
     # ============ preparing data ... ============
     data_loader_train, data_loader_val, dataset_train, dataset_val = get_data(args)
@@ -173,8 +200,8 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
         x = next(dataloader_iterator)[0].cuda()
         print(x)
         if args.attack:
-            features = model(
-                generate_attack(attack=args.attack, eps=args.eps, model=model, x=x, target=targets))
+            features = model(generate_attack(attack=args.attack, eps=args.eps, model=model_wrapper(num_classes), x=x,
+                                             target=targets))
         else:
             features = test_features[
                        idx: min((idx + imgs_per_chunk), num_test_images), :
