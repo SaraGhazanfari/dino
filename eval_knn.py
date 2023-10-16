@@ -29,6 +29,9 @@ from attack.attack import generate_attack
 
 
 def extract_feature_pipeline(args, model):
+    # ============ preparing data ... ============
+    data_loader_train, data_loader_val, dataset_train, dataset_val = get_data(args)
+    print(f"Data loaded with {len(dataset_train)} train and {len(dataset_val)} val imgs.")
     # ============ extract features ... ============
     print("Extracting features for train set...")
     train_features = extract_features(model, data_loader_train, args.use_cuda)
@@ -47,7 +50,7 @@ def extract_feature_pipeline(args, model):
         torch.save(test_features.cpu(), os.path.join(args.dump_features, "testfeat.pth"))
         torch.save(train_labels.cpu(), os.path.join(args.dump_features, "trainlabels.pth"))
         torch.save(test_labels.cpu(), os.path.join(args.dump_features, "testlabels.pth"))
-    return train_features, test_features, train_labels, test_labels
+    return train_features, test_features, train_labels, test_labels, dataset_val
 
 
 def get_model(args):
@@ -154,12 +157,21 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
     num_test_images, num_chunks = test_labels.shape[0], 100
     imgs_per_chunk = num_test_images // num_chunks
     retrieval_one_hot = torch.zeros(k, num_classes).to(train_features.device)
+
+    data_loader = torch.utils.data.DataLoader(
+        dataset_val,
+        sampler=None,
+        batch_size=imgs_per_chunk,
+        num_workers=args.num_workers,
+        pin_memory=True,
+        drop_last=True,
+    )
+
     for idx in range(0, num_test_images, imgs_per_chunk):
         # get the features for test images
         targets = test_labels[idx: min((idx + imgs_per_chunk), num_test_images)]
-        print(dataset_val[idx])
-        print(dataset_val[idx: idx + imgs_per_chunk])
-        x = dataset_val[idx: min((idx + imgs_per_chunk), num_test_images)][0]
+        x = next(data_loader)[0]
+        print(x)
         if args.attack:
             features = model(
                 generate_attack(attack=args.attack, eps=args.eps, model=model, x=x, target=targets)).clone()
@@ -236,9 +248,6 @@ if __name__ == '__main__':
     print("git:\n  {}\n".format(utils.get_sha()))
     print("\n".join("%s: %s" % (k, str(v)) for k, v in sorted(dict(vars(args)).items())))
     cudnn.benchmark = True
-    # ============ preparing data ... ============
-    data_loader_train, data_loader_val, dataset_train, dataset_val = get_data(args)
-    print(f"Data loaded with {len(dataset_train)} train and {len(dataset_val)} val imgs.")
 
     # ============ preparing model ... ============
     model = get_model(args)
@@ -250,7 +259,7 @@ if __name__ == '__main__':
         test_labels = torch.load(os.path.join(args.load_features, "testlabels.pth"))
     else:
         # need to extract features !
-        train_features, test_features, train_labels, test_labels = extract_feature_pipeline(args, model)
+        train_features, test_features, train_labels, test_labels, dataset_val = extract_feature_pipeline(args, model)
 
     if utils.get_rank() == 0:
         if args.use_cuda:
