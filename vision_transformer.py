@@ -207,18 +207,11 @@ class VisionTransformer(nn.Module):
         return self.pos_drop(x)
 
     def forward(self, x):
-        print('--------------------x--------------------')
-        print(x.requires_grad)
-        print('--------------------prepare--------------------')
         x = self.prepare_tokens(x)
-        print(x.requires_grad)
         for blk in self.blocks:
-            print('--------------------blk--------------------')
             x = blk(x)
-            print(x.requires_grad)
-        print('--------------------norm--------------------')
+
         x = self.norm(x)
-        print(x.requires_grad)
         return x[:, 0]
 
     def get_last_selfattention(self, x):
