@@ -28,7 +28,7 @@ import vision_transformer as vits
 from attack.attack import generate_attack
 
 
-def model_wrapper(num_classes, model):
+def model_wrapper(num_classes, model, target):
     model.train()
 
     def predict(x):
@@ -51,6 +51,7 @@ def model_wrapper(num_classes, model):
             1,
         )
         _, predictions = probs.sort(1, True)
+        print(nn.CrossEntropyLoss()(predictions, target))
         return predictions
 
     return predict
@@ -202,7 +203,7 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
         print(x)
         if args.attack:
             features = model(
-                generate_attack(attack=args.attack, eps=args.eps, model=model_wrapper(num_classes, model), x=x,
+                generate_attack(attack=args.attack, eps=args.eps, model=model_wrapper(num_classes, model, targets), x=x,
                                 target=targets))
         else:
             features = test_features[
