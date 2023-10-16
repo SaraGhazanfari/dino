@@ -96,7 +96,7 @@ def get_model(args):
         sys.exit(1)
 
     optimizer = torch.optim.AdamW(model.parameters())
-    utils.load_pretrained_weights(model, optimizer, args.pretrained_weights, args.checkpoint_key, args.arch, args.patch_size)
+    utils.load_pretrained_weights(model, args.pretrained_weights, args.checkpoint_key, args.arch, args.patch_size)
     model.cuda()
     return model
 
