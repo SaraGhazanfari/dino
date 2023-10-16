@@ -170,7 +170,7 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
     for idx in range(0, num_test_images, imgs_per_chunk):
         # get the features for test images
         targets = test_labels[idx: min((idx + imgs_per_chunk), num_test_images)]
-        x = next(dataloader_iterator)[0]
+        x = next(dataloader_iterator)[0].cuda()
         print(x)
         if args.attack:
             features = model(
