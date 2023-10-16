@@ -35,6 +35,7 @@ def model_wrapper(num_classes, model):
         retrieval_one_hot = torch.zeros(k, num_classes).cuda()
         batch_size = x.shape[0]
         features = model(x)
+        print(features.requires_grad)
         similarity = torch.mm(features, torch.t(train_features))
         distances, indices = similarity.topk(k, largest=True, sorted=True)
         candidates = train_labels.view(1, -1).expand(batch_size, -1)
@@ -51,11 +52,10 @@ def model_wrapper(num_classes, model):
             1,
         )
         _, predictions = probs.sort(1, True)
-        print(predictions.requires_grad)
         predictions = predictions.double()
         predictions.requires_grad = True
         return predictions
-        #return torch.randn(predictions.shape[0], predictions.shape[1], requires_grad=True).cuda()
+
     return predict
 
 
