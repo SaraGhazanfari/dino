@@ -49,7 +49,7 @@ def parse_args():
 def get_init_file(shared_folder):
     # Init file must not exist, but it's parent dir must exist.
     os.makedirs(str(shared_folder), exist_ok=True)
-    init_file = shared_folder / f"{uuid.uuid4().hex}_init"
+    init_file = Path(shared_folder) / f"{uuid.uuid4().hex}_init"
     if init_file.exists():
         os.remove(str(init_file))
     return init_file
