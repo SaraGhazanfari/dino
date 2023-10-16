@@ -28,7 +28,9 @@ import vision_transformer as vits
 from attack.attack import generate_attack
 
 
-def model_wrapper(num_classes):
+def model_wrapper(num_classes, model):
+    model.train()
+
     def predict(x):
         retrieval_one_hot = torch.zeros(k, num_classes).cuda()
         batch_size = x.shape[0]
@@ -200,8 +202,9 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
         x = next(dataloader_iterator)[0].cuda()
         print(x)
         if args.attack:
-            features = model(generate_attack(attack=args.attack, eps=args.eps, model=model_wrapper(num_classes), x=x,
-                                             target=targets))
+            features = model(
+                generate_attack(attack=args.attack, eps=args.eps, model=model_wrapper(num_classes, model), x=x,
+                                target=targets))
         else:
             features = test_features[
                        idx: min((idx + imgs_per_chunk), num_test_images), :
