@@ -96,8 +96,7 @@ def get_model(args):
         sys.exit(1)
 
     params_groups = utils.get_params_groups(model)
-    if args.optimizer == "adamw":
-        optimizer = torch.optim.AdamW(params_groups)
+    optimizer = torch.optim.AdamW(params_groups)
     utils.load_pretrained_weights(model, optimizer, args.pretrained_weights, args.checkpoint_key, args.arch, args.patch_size)
     model.cuda()
     return model
