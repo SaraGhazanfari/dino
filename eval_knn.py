@@ -208,7 +208,7 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
         if args.attack:
             features = model(
                 generate_attack(attack=args.attack, eps=args.eps, model=dist_wrapper(model, model(x)), x=x,
-                                target=model(x)))
+                                target=torch.zeros(x.shape[0]).cuda(), ))
         else:
             features = test_features[
                        idx: min((idx + imgs_per_chunk), num_test_images), :
