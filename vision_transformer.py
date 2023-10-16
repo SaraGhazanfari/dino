@@ -266,7 +266,7 @@ def vit_base(patch_size=16, **kwargs):
 
 
 class DINOHead(nn.Module):
-    def __init__(self, in_dim, out_dim, use_bn=False, norm_last_layer=True, nlayers=3, hidden_dim=2048,
+    def __init__(self, in_dim, out_dim, use_bn=False, norm_last_layer=True, nlayers=3, hidden_dim=1024,
                  bottleneck_dim=256):
         super().__init__()
         nlayers = max(nlayers, 1)
