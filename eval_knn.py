@@ -38,6 +38,9 @@ def model_wrapper(num_classes, model):
         print('------------------------------------')
         print(features.requires_grad)
         print('------------------------------------')
+        for param in model.parameters():
+            print(param.requires_grad)
+        print('------------------------------------')
         similarity = torch.mm(features, torch.t(train_features))
         distances, indices = similarity.topk(k, largest=True, sorted=True)
         candidates = train_labels.view(1, -1).expand(batch_size, -1)
