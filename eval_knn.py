@@ -34,8 +34,8 @@ def model_wrapper(num_classes, model):
         retrieval_one_hot = torch.zeros(k, num_classes).cuda()
         batch_size = x.shape[0]
         features = model(x)
+        x.requires_grad = True
         print('------------------------------------')
-        print(x.requires_grad)
         print(features.requires_grad)
         print('------------------------------------')
         similarity = torch.mm(features, torch.t(train_features))
