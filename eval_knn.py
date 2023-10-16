@@ -199,7 +199,7 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
         x = next(dataloader_iterator)[0].cuda()
         if args.attack:
             features = model(
-                generate_attack(attack=args.attack, eps=args.eps, model=model_wrapper(num_classes, model, targets), x=x,
+                generate_attack(attack=args.attack, eps=args.eps, model=model_wrapper(num_classes, model), x=x,
                                 target=targets))
         else:
             features = test_features[
