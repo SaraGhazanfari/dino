@@ -34,6 +34,8 @@ def model_wrapper(num_classes, model):
         batch_size = x.shape[0]
         features = model(x)
         features.requires_grad = True
+        print(features.grad_fn)
+        print(model)
         similarity = torch.mm(features, torch.t(train_features))
         distances, indices = similarity.topk(k, largest=True, sorted=True)
         candidates = train_labels.view(1, -1).expand(batch_size, -1)
