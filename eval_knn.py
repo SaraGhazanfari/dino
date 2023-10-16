@@ -95,9 +95,9 @@ def get_model(args):
     else:
         print(f"Architecture {args.arch} non supported")
         sys.exit(1)
-
-
     utils.load_pretrained_weights(model, args.pretrained_weights, args.checkpoint_key, args.arch, args.patch_size)
+    optimizer = torch.optim.AdamW(model.parameters())
+    optimizer.zero_grad()
     model.cuda()
     return model
 
@@ -174,7 +174,7 @@ def extract_features(model, data_loader, use_cuda=True, multiscale=False):
                 features.index_copy_(0, index_all, torch.cat(output_l))
             else:
                 features.index_copy_(0, index_all.cpu(), torch.cat(output_l).cpu())
-        #todo
+        # todo
         break
     return features
 
