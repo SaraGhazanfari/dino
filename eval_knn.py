@@ -174,7 +174,7 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
         print(x)
         if args.attack:
             features = model(
-                generate_attack(attack=args.attack, eps=args.eps, model=model, x=x, target=targets)).clone()
+                generate_attack(attack=args.attack, eps=args.eps, model=model, x=x, target=targets))
         else:
             features = test_features[
                        idx: min((idx + imgs_per_chunk), num_test_images), :

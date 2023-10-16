@@ -8,8 +8,6 @@ def generate_attack(attack, eps, model, x, target, loss=nn.CrossEntropyLoss()):
     attack_method, attack_norm = attack.split('-')
     x.requires_grad = True
     print(x.requires_grad)
-    for param in model.parameters():
-        print(param.requires_grad)
     if attack_method == 'AA':
         adversary = AutoAttack(model, norm=attack_norm, eps=eps, version='standard', device='cuda')
         adversary.attacks_to_run = ['apgd-ce']
