@@ -147,7 +147,7 @@ def train_dino(args):
         args.local_crops_number,
     )
     dataset = datasets.ImageFolder(args.data_path, transform=transform)
-    subset_of_dataset = torch.utils.data.Subset(dataset, range(0, len(dataset), 1 / args.subset))
+    subset_of_dataset = torch.utils.data.Subset(dataset, range(0, len(dataset), int(1 / args.subset)))
     sampler = torch.utils.data.DistributedSampler(subset_of_dataset, shuffle=True)
     data_loader = torch.utils.data.DataLoader(
         subset_of_dataset,
