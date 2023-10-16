@@ -73,6 +73,7 @@ class Solarization(object):
 def load_pretrained_weights(model, optimizer, pretrained_weights, checkpoint_key, model_name, patch_size):
     if os.path.isfile(pretrained_weights):
         state_dict = torch.load(pretrained_weights, map_location="cpu")
+        print(state_dict.keys())
         if checkpoint_key is not None and checkpoint_key in state_dict:
             print(f"Take key {checkpoint_key} in provided checkpoint dict")
             state_dict = state_dict[checkpoint_key]
@@ -81,6 +82,7 @@ def load_pretrained_weights(model, optimizer, pretrained_weights, checkpoint_key
         # remove `backbone.` prefix induced by multicrop wrapper
         state_dict = {k.replace("backbone.", ""): v for k, v in state_dict.items()}
         msg = model.load_state_dict(state_dict, strict=False)
+        print(state_dict.keys())
         optimizer.load_state_dict(state_dict['optimizer'])
         print('Pretrained weights found at {} and loaded with msg: {}'.format(pretrained_weights, msg))
     else:
