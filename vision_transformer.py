@@ -207,7 +207,6 @@ class VisionTransformer(nn.Module):
         return self.pos_drop(x)
 
     def forward(self, x):
-        x.requires_grad=True
         print('--------------------x--------------------')
         print(x.requires_grad)
         print('--------------------prepare--------------------')
