@@ -1,3 +1,4 @@
+import torch
 from advertorch.attacks import L2PGDAttack, LinfPGDAttack
 import torch.nn as nn
 from autoattack import AutoAttack
@@ -20,5 +21,5 @@ def generate_attack(attack, eps, model, x, target, loss=nn.CrossEntropyLoss()):
             adversary = LinfPGDAttack(model, loss_fn=loss, eps=eps, nb_iter=50, eps_iter=0.03, rand_init=True,
                                       clip_min=0.,
                                       clip_max=1., targeted=False)
-        adv_image = adversary(x, target.float())
+        adv_image = adversary(x, target.long())
     return adv_image
