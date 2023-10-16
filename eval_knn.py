@@ -51,7 +51,10 @@ def model_wrapper(num_classes, model):
             1,
         )
         _, predictions = probs.sort(1, True)
-        return predictions
+
+        #return predictions
+        print(predictions.type)
+        return torch.randn(predictions.shape[0], predictions.shape[1], requires_grad=True)
     return predict
 
 
