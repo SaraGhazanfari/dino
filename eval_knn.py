@@ -35,6 +35,7 @@ def model_wrapper(num_classes, model):
         batch_size = x.shape[0]
         features = model(x)
         print('------------------------------------')
+        print(x.requires_grad)
         print(features.requires_grad)
         print('------------------------------------')
         similarity = torch.mm(features, torch.t(train_features))
