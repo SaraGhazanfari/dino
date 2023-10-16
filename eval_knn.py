@@ -29,13 +29,14 @@ from attack.attack import generate_attack
 
 
 def model_wrapper(num_classes, model):
-    model.train()
 
     def predict(x):
         retrieval_one_hot = torch.zeros(k, num_classes).cuda()
         batch_size = x.shape[0]
         features = model(x)
+        print('------------------------------------')
         print(features.requires_grad)
+        print('------------------------------------')
         similarity = torch.mm(features, torch.t(train_features))
         distances, indices = similarity.topk(k, largest=True, sorted=True)
         candidates = train_labels.view(1, -1).expand(batch_size, -1)
@@ -99,7 +100,6 @@ def get_model(args):
         sys.exit(1)
     model.cuda()
     utils.load_pretrained_weights(model, args.pretrained_weights, args.checkpoint_key, args.arch, args.patch_size)
-    model.eval()
     return model
 
 
