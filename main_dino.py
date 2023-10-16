@@ -157,7 +157,7 @@ def train_dino(args):
         pin_memory=True,
         drop_last=True,
     )
-    # print(f"Data loaded: there are {len(subset_of_dataset)} images.")
+    print(f"Data loaded: there are {len(subset_of_dataset)} images.")
 
     # ============ building student and teacher networks ... ============
     # we changed the name DeiT-S for ViT-S to avoid confusions
