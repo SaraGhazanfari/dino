@@ -33,6 +33,7 @@ def model_wrapper(num_classes, model):
         retrieval_one_hot = torch.zeros(k, num_classes).cuda()
         batch_size = x.shape[0]
         features = model(x)
+        print(model(x).requires_grad)
         similarity = torch.mm(features, torch.t(train_features))
         distances, indices = similarity.topk(k, largest=True, sorted=True)
         candidates = train_labels.view(1, -1).expand(batch_size, -1)
@@ -95,7 +96,6 @@ def get_model(args):
         print(f"Architecture {args.arch} non supported")
         sys.exit(1)
 
-    optimizer = torch.optim.AdamW(model.parameters())
     utils.load_pretrained_weights(model, args.pretrained_weights, args.checkpoint_key, args.arch, args.patch_size)
     model.cuda()
     return model
