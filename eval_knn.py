@@ -35,6 +35,7 @@ def model_wrapper(num_classes, model):
         batch_size = x.shape[0]
         features = model(x)
         x.requires_grad = True
+        print(features)
         print('------------------------------------')
         print(features.requires_grad)
         print('------------------------------------')
