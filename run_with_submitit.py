@@ -23,6 +23,8 @@ from pathlib import Path
 import main_dino
 import submitit
 
+shared_folder = os.environ.get('folder_path')
+
 
 def parse_args():
     parser = argparse.ArgumentParser("Submitit for DINO", parents=[main_dino.get_args_parser()])
@@ -68,7 +70,7 @@ class Trainer(object):
     def checkpoint(self):
         import submitit
 
-        self.args.dist_url = get_init_file(self.args.folder).as_uri()
+        self.args.dist_url = get_init_file(shared_folder).as_uri()
         print("Requeuing ", self.args)
         empty_trainer = type(self)(self.args)
         return submitit.helpers.DelayedSubmission(empty_trainer)
@@ -88,7 +90,7 @@ class Trainer(object):
 def main():
     args = parse_args()
     if args.output_dir == "":
-        args.output_dir = args.folder / "%j"
+        args.output_dir = shared_folder / "%j"
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
     executor = submitit.AutoExecutor(folder=args.output_dir, slurm_max_num_timeout=30)
 
@@ -118,7 +120,7 @@ def main():
 
     executor.update_parameters(name="dino")
 
-    args.dist_url = get_init_file(args.folder).as_uri()
+    args.dist_url = get_init_file(shared_folder).as_uri()
 
     trainer = Trainer(args)
     job = executor.submit(trainer)
