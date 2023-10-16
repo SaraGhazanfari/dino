@@ -28,7 +28,7 @@ import vision_transformer as vits
 from attack.attack import generate_attack
 
 
-def model_wrapper(num_classes, model):
+def model_wrapper(num_classes, model, targets):
     def predict(x):
         retrieval_one_hot = torch.zeros(k, num_classes).cuda()
         batch_size = x.shape[0]
@@ -51,6 +51,8 @@ def model_wrapper(num_classes, model):
         )
         _, predictions = probs.sort(1, True)
         predictions = predictions.double()
+        loss = nn.CrossEntropyLoss()(predictions, targets)
+        loss.backward()
 
         return predictions
 
@@ -204,7 +206,7 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
         x = next(dataloader_iterator)[0].cuda()
         if args.attack:
             features = model(
-                generate_attack(attack=args.attack, eps=args.eps, model=model_wrapper(num_classes, model), x=x,
+                generate_attack(attack=args.attack, eps=args.eps, model=model_wrapper(num_classes, model, targets), x=x,
                                 target=targets))
         else:
             features = test_features[
