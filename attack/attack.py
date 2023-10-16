@@ -7,7 +7,6 @@ from autoattack import AutoAttack
 def generate_attack(attack, eps, model, x, target, loss=nn.CrossEntropyLoss()):
     attack_method, attack_norm = attack.split('-')
 
-
     if attack_method == 'AA':
         adversary = AutoAttack(model, norm=attack_norm, eps=eps, version='standard', device='cuda')
         adversary.attacks_to_run = ['apgd-ce']

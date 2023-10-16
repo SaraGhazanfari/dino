@@ -55,6 +55,14 @@ def model_wrapper(num_classes, model):
     return predict
 
 
+def dist_wrapper(model, ref_features):
+    def get_dist(x):
+        dist = nn.CosineSimilarity(dim=1, eps=1e-6)(model(x), ref_features)
+        return torch.stack((1 - dist, dist), dim=1)
+
+    return get_dist
+
+
 def extract_feature_pipeline(args, model):
     # ============ preparing data ... ============
     data_loader_train, data_loader_val, dataset_train, dataset_val = get_data(args)
@@ -199,8 +207,8 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
         x = next(dataloader_iterator)[0].cuda()
         if args.attack:
             features = model(
-                generate_attack(attack=args.attack, eps=args.eps, model=model_wrapper(num_classes, model), x=x,
-                                target=targets))
+                generate_attack(attack=args.attack, eps=args.eps, model=dist_wrapper(model, model(x)), x=x,
+                                target=model(x)))
         else:
             features = test_features[
                        idx: min((idx + imgs_per_chunk), num_test_images), :
