@@ -182,7 +182,7 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
     top1, top5, total = 0.0, 0.0, 0
     train_features = train_features.t()
     num_test_images, num_chunks = test_labels.shape[0], 100
-    imgs_per_chunk = num_test_images // num_chunks
+    imgs_per_chunk = 64#num_test_images // num_chunks
     retrieval_one_hot = torch.zeros(k, num_classes).to(train_features.device)
 
     data_loader = torch.utils.data.DataLoader(
