@@ -273,8 +273,6 @@ def train_dino(args):
     start_time = time.time()
     backbone_param, head_param = 0, 0
     for name, param in student.named_parameters():
-        if param.requires_grad:
-            print(name, param.data.numel())
         if 'backbone' in name:
             backbone_param += param.data.numel()
         else:
