@@ -98,8 +98,6 @@ def get_model(args):
         print(f"Architecture {args.arch} non supported")
         sys.exit(1)
     utils.load_pretrained_weights(model, args.pretrained_weights, args.checkpoint_key, args.arch, args.patch_size)
-    optimizer = torch.optim.AdamW(model.parameters())
-    optimizer.zero_grad()
     model.cuda()
     return model
 
@@ -181,7 +179,6 @@ def extract_features(model, data_loader, use_cuda=True, multiscale=False):
     return features
 
 
-@torch.no_grad()
 def knn_classifier(train_features, train_labels, test_features, test_labels, k, args, model, dataset_val,
                    num_classes=1000):
     top1, top5, total = 0.0, 0.0, 0
