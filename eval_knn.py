@@ -51,8 +51,7 @@ def model_wrapper(num_classes, model):
             1,
         )
         _, predictions = probs.sort(1, True)
-        #return predictions
-        return torch.zeros_like(predictions, requires_grad=True)
+        return predictions
     return predict
 
 
