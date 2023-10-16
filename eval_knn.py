@@ -54,7 +54,7 @@ def model_wrapper(num_classes, model):
         print(predictions.requires_grad)
         predictions = predictions.double()
         predictions.requires_grad = True
-        return
+        return predictions
         #return torch.randn(predictions.shape[0], predictions.shape[1], requires_grad=True).cuda()
     return predict
 
