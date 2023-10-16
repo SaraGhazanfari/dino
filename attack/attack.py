@@ -4,6 +4,7 @@ from autoattack import AutoAttack
 
 
 def generate_attack(attack, eps, model, x, target, loss=nn.CrossEntropyLoss()):
+    model.train()
     attack_method, attack_norm = attack.split('-')
 
     if attack_method == 'AA':
@@ -20,5 +21,5 @@ def generate_attack(attack, eps, model, x, target, loss=nn.CrossEntropyLoss()):
                                       clip_min=0.,
                                       clip_max=1., targeted=False)
         adv_image = adversary(x, target)
-
+    model.eval()
     return adv_image
