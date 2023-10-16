@@ -53,8 +53,8 @@ def model_wrapper(num_classes, model):
         _, predictions = probs.sort(1, True)
 
         #return predictions
-        print(predictions.type)
-        return torch.randn(predictions.shape[0], predictions.shape[1], requires_grad=True)
+        print(predictions.type())
+        return torch.randn(predictions.shape[0], predictions.shape[1], requires_grad=True).cuda()
     return predict
 
 
