@@ -156,7 +156,7 @@ def extract_features(model, data_loader, use_cuda=True, multiscale=False):
     return features
 
 
-def knn_classifier(train_features, train_labels, test_features, test_labels, k, args, model, dataset_val,
+def knn_classifier(train_features, train_labels, test_features, test_labels, k, args, model,
                    num_classes=1000):
     top1, top5, total = 0.0, 0.0, 0
     train_features = train_features.t()
