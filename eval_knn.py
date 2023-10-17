@@ -79,7 +79,7 @@ def get_model(args):
     return model
 
 
-def get_data(args):
+def get_data(args, return_val=False):
     transform = pth_transforms.Compose([
         pth_transforms.Resize(256, interpolation=3),
         pth_transforms.CenterCrop(224),
@@ -88,6 +88,8 @@ def get_data(args):
     ])
     dataset_train = ReturnIndexDataset(os.path.join(args.data_path, "train"), transform=transform)
     dataset_val = ReturnIndexDataset(os.path.join(args.data_path, "val"), transform=transform)
+    if return_val:
+        return dataset_val
     sampler = torch.utils.data.DistributedSampler(dataset_train, shuffle=False)
     data_loader_train = torch.utils.data.DataLoader(
         dataset_train,
@@ -161,7 +163,7 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
     num_test_images, num_chunks = test_labels.shape[0], 100
     imgs_per_chunk = 64  # num_test_images // num_chunks
     retrieval_one_hot = torch.zeros(k, num_classes).to(train_features.device)
-
+    dataset_val = get_data(args, return_val=True)
     data_loader = torch.utils.data.DataLoader(
         dataset_val,
         sampler=None,
@@ -266,7 +268,7 @@ if __name__ == '__main__':
         test_labels = torch.load(os.path.join(args.load_features, "testlabels.pth"))
     else:
         # need to extract features !
-        train_features, test_features, train_labels, test_labels, dataset_val = extract_feature_pipeline(args, model)
+        train_features, test_features, train_labels, test_labels = extract_feature_pipeline(args, model)
 
     if utils.get_rank() == 0:
         if args.use_cuda:
@@ -278,6 +280,6 @@ if __name__ == '__main__':
         print("Features are ready!\nStart the k-NN classification.")
         for k in args.nb_knn:
             top1, top5 = knn_classifier(train_features, train_labels,
-                                        test_features, test_labels, k, args, model, dataset_val)
+                                        test_features, test_labels, k, args, model)
             print(f"{k}-NN classifier result: Top1: {top1}, Top5: {top5}")
     dist.barrier()
