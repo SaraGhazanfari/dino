@@ -170,12 +170,14 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
         pin_memory=True,
         drop_last=True,
     )
-    dataloader_iterator = iter(data_loader)
-    for idx in range(0, num_test_images, imgs_per_chunk):
+    metric_logger = utils.MetricLogger(delimiter="  ")
+    for idx, (x,_) in metric_logger.log_every(data_loader, 10):
+    # for idx in range(0, num_test_images, imgs_per_chunk):
         # get the features for test images
+        idx *= imgs_per_chunk
         targets = test_labels[idx: min((idx + imgs_per_chunk), num_test_images)]
 
-        x = next(dataloader_iterator)[0].cuda()
+        x = x.cuda()
         if args.attack:
             features = model(
                 generate_attack(attack=args.attack, eps=args.eps, model=dist_wrapper(model, model(x)), x=x,
