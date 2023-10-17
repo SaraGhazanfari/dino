@@ -173,7 +173,7 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
         drop_last=True,
     )
     metric_logger = utils.MetricLogger(delimiter="  ")
-    for idx, (x,_) in metric_logger.log_every(data_loader, 10):
+    for idx, (x,_) in enumerate(metric_logger.log_every(data_loader, 10)):
     # for idx in range(0, num_test_images, imgs_per_chunk):
         # get the features for test images
         idx *= imgs_per_chunk
