@@ -30,7 +30,7 @@ from attack.attack import generate_attack
 
 def dist_wrapper(model, ref_features):
     def get_dist(x):
-        dist = nn.CosineSimilarity(dim=1, eps=1e-6)(model(x), ref_features)
+        dist = 1 - nn.CosineSimilarity(dim=1, eps=1e-6)(model(x), ref_features)
         return torch.stack((1 - dist, dist), dim=1)
 
     return get_dist
@@ -173,17 +173,20 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
         drop_last=True,
     )
     metric_logger = utils.MetricLogger(delimiter="  ")
+    cos_sim = nn.CosineSimilarity(dim=1, eps=1e-6)
+    distance_list = list()
     for idx, (x,_) in enumerate(metric_logger.log_every(data_loader, 1)):
     # for idx in range(0, num_test_images, imgs_per_chunk):
         # get the features for test images
         idx *= imgs_per_chunk
         targets = test_labels[idx: min((idx + imgs_per_chunk), num_test_images)]
-
         x = x.cuda()
         if args.attack:
-            features = model(
-                generate_attack(attack=args.attack, eps=args.eps, model=dist_wrapper(model, model(x)), x=x,
-                                target=torch.zeros(x.shape[0]).cuda(), ))
+            original_features = model(x)
+            x_adv = generate_attack(attack=args.attack, eps=args.eps, model=dist_wrapper(model, original_features), x=x,
+                                target=torch.zeros(x.shape[0]).cuda(), )
+            features = model(x_adv)
+            distance_list.append(1 - cos_sim(features, original_features))
         else:
             features = test_features[
                        idx: min((idx + imgs_per_chunk), num_test_images), :
@@ -217,6 +220,7 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
         print(f'top1 = {top1 * 100.0 / total}, top5  =  {top5 * 100.0 / total}')
     top1 = top1 * 100.0 / total
     top5 = top5 * 100.0 / total
+    torch.save(distance_list, 'distance_list.pt')
     return top1, top5
 
 
