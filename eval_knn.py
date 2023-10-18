@@ -219,7 +219,7 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
         total += targets.size(0)
     top1 = top1 * 100.0 / total
     top5 = top5 * 100.0 / total
-    torch.save(distance_list, 'distance_list.pt')
+    torch.save(distance_list, f'distance_{k}_list.pt')
     return top1, top5
 
 
