@@ -58,7 +58,7 @@ def extract_feature_pipeline(args, model):
         torch.save(test_features.cpu(), os.path.join(args.dump_features, "testfeat.pth"))
         torch.save(train_labels.cpu(), os.path.join(args.dump_features, "trainlabels.pth"))
         torch.save(test_labels.cpu(), os.path.join(args.dump_features, "testlabels.pth"))
-    return train_features, test_features, train_labels, test_labels, dataset_val
+    return train_features, test_features, train_labels, test_labels
 
 
 def get_model(args):
