@@ -175,8 +175,8 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
     metric_logger = utils.MetricLogger(delimiter="  ")
     cos_sim = nn.CosineSimilarity(dim=1, eps=1e-6)
     distance_list = list()
-    for idx, (x,_) in enumerate(metric_logger.log_every(data_loader, 100)):
-    # for idx in range(0, num_test_images, imgs_per_chunk):
+    for idx, (x, _) in enumerate(metric_logger.log_every(data_loader, 100)):
+        # for idx in range(0, num_test_images, imgs_per_chunk):
         # get the features for test images
         idx *= imgs_per_chunk
         targets = test_labels[idx: min((idx + imgs_per_chunk), num_test_images)]
@@ -184,7 +184,7 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
         if args.attack:
             original_features = model(x).detach()
             x_adv = generate_attack(attack=args.attack, eps=args.eps, model=dist_wrapper(model, original_features), x=x,
-                                target=torch.zeros(x.shape[0]).cuda(), )
+                                    target=torch.zeros(x.shape[0]).cuda(), )
             features = model(x_adv).detach()
             distance_list.append(1 - cos_sim(features, original_features))
         else:
@@ -219,7 +219,8 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
         total += targets.size(0)
     top1 = top1 * 100.0 / total
     top5 = top5 * 100.0 / total
-    torch.save(distance_list, f'distance_{k}_list.pt')
+    root = args.load_features if args.load_features else args.dump_features
+    torch.save(distance_list, os.path.join(root, 'distance_list.pt'))
     return top1, top5
 
 
