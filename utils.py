@@ -486,7 +486,7 @@ def init_distributed_mode(args):
         print('Will run the code on one GPU.')
         args.rank, args.gpu, args.world_size = 0, 0, 1
         os.environ['MASTER_ADDR'] = '127.0.0.1'
-        os.environ['MASTER_PORT'] = '29500'
+        os.environ['MASTER_PORT'] = get_port_number()  # '29500'
     else:
         print('Does not support training without GPU.')
         sys.exit(1)
@@ -503,6 +503,14 @@ def init_distributed_mode(args):
         args.rank, args.dist_url), flush=True)
     dist.barrier()
     setup_for_distributed(args.rank == 0)
+
+
+def get_port_number():
+    from socket import socket
+    with socket() as s:
+        s.bind(('', 0))
+        port = s.getsockname()[1]
+    return port
 
 
 def accuracy(output, target, topk=(1,)):
