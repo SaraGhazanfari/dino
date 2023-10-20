@@ -27,6 +27,7 @@ import torch.nn as nn
 import torch.distributed as dist
 import torch.backends.cudnn as cudnn
 import torch.nn.functional as F
+from torch.utils.data import SubsetRandomSampler
 from torchvision import datasets, transforms
 from torchvision import models as torchvision_models
 
@@ -147,7 +148,8 @@ def train_dino(args):
         args.local_crops_number,
     )
     dataset = datasets.ImageFolder(args.data_path, transform=transform)
-    subset_of_dataset = torch.utils.data.Subset(dataset, range(0, len(dataset), int(1 / args.subset)))
+    indices = get_subset_indices(args, len(dataset))
+    subset_of_dataset = torch.utils.data.Subset(dataset, indices=indices)
     sampler = torch.utils.data.DistributedSampler(subset_of_dataset, shuffle=True)
     data_loader = torch.utils.data.DataLoader(
         subset_of_dataset,
@@ -309,6 +311,21 @@ def train_dino(args):
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     print('Training time {}'.format(total_time_str))
+
+
+def get_subset_indices(args, len_dataset):
+    number_of_split = 5
+    indices = np.arange(start=0, stop=len_dataset)
+    np.random.shuffle(indices)
+    indices = indices.reshape(number_of_split, -1)
+    indices = {
+        0.2: list(indices[0]),
+        0.4: list(indices[0]) + list(indices[1]),
+        0.6: list(indices[0]) + list(indices[1]) + list(indices[2]),
+        0.8: list(indices[0]) + list(indices[1]) + list(indices[2]) + list(indices[3]),
+        1.0: list(indices[0]) + list(indices[1]) + list(indices[2]) + list(indices[3]) + list(indices[4])
+    }[args.subset]
+    return indices
 
 
 def train_one_epoch(student, teacher, teacher_without_ddp, dino_loss, data_loader,
