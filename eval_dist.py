@@ -84,8 +84,8 @@ def dist_attack(args, model):
         idx *= imgs_per_chunk
         x = x.cuda()
         original_features = model(x).detach()
-        x_adv = generate_attack(attack=args.attack, eps=args.eps, model=dist_wrapper(model, original_features), x=x,
-                                target=torch.zeros(x.shape[0]).cuda(), )
+        x_adv = generate_attack(attack=args.attack, eps=args.eps, model=model, x=x,
+                                target=original_features)  # torch.zeros(x.shape[0]).cuda(), )
         features = model(x_adv).detach()
         distance_list.append(1 - cos_sim(features, original_features))
 
