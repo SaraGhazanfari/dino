@@ -315,7 +315,7 @@ def train_dino(args):
 
 def get_subset_indices(args, len_dataset):
     number_of_split = 5
-    indices = np.arange(start=0, stop=len_dataset)
+    indices = np.arange(start=0, stop=len_dataset-2)
     np.random.shuffle(indices)
     indices = indices.reshape(number_of_split, -1)
     indices = {
