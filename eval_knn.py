@@ -184,7 +184,7 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
         if args.attack:
             original_features = model(x).detach()
             x_adv = generate_attack(attack=args.attack, eps=args.eps, model=dist_wrapper(model, original_features), x=x,
-                                    target=torch.zeros(x.shape[0]).cuda(), )
+                                    target=original_features) #torch.zeros(x.shape[0]).cuda()
             features = model(x_adv).detach()
             distance_list.append(1 - cos_sim(features, original_features))
         else:
