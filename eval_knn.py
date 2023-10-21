@@ -183,6 +183,7 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
         x = x.cuda()
         if args.attack:
             original_features = model(x).detach()
+            print(cos_sim(test_features[idx: min((idx + imgs_per_chunk), num_test_images), :], original_features))
             x_adv = generate_attack(attack=args.attack, eps=args.eps, model=model, x=x, target=original_features)
             # torch.zeros(x.shape[0]).cuda() dist_wrapper(model, original_features)
             features = model(x_adv).detach()
