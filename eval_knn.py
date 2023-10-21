@@ -220,7 +220,7 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
     top1 = top1 * 100.0 / total
     top5 = top5 * 100.0 / total
     root = args.load_features if args.load_features else args.dump_features
-    torch.save(distance_list, os.path.join(root, 'distance_list.pt'))
+    torch.save(distance_list, os.path.join(root, f'distance_list_{args.attack}_{args.eps}.pt'))
     return top1, top5
 
 
