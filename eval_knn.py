@@ -42,9 +42,9 @@ def extract_feature_pipeline(args, model):
     print(f"Data loaded with {len(dataset_train)} train and {len(dataset_val)} val imgs.")
     # ============ extract features ... ============
     print("Extracting features for train set...")
-    train_features = extract_features(model, data_loader_train, args.use_cuda)
+    # train_features = extract_features(model, data_loader_train, args.use_cuda)
     print("Extracting features for val set...")
-    test_features = extract_features(model, data_loader_val, args.use_cuda)
+    test_features = extract_features(model, data_loader_val, args.use_cuda, is_test=True)
 
     if utils.get_rank() == 0:
         train_features = nn.functional.normalize(train_features, dim=1, p=2)
@@ -79,7 +79,7 @@ def get_model(args):
     return model
 
 
-def get_data(args, return_val=False):
+def get_data(args):
     transform = pth_transforms.Compose([
         pth_transforms.Resize(256, interpolation=3),
         pth_transforms.CenterCrop(224),
@@ -88,8 +88,7 @@ def get_data(args, return_val=False):
     ])
     dataset_train = ReturnIndexDataset(os.path.join(args.data_path, "train"), transform=transform)
     dataset_val = ReturnIndexDataset(os.path.join(args.data_path, "val"), transform=transform)
-    if return_val:
-        return dataset_val
+
     sampler = torch.utils.data.DistributedSampler(dataset_train, shuffle=False)
     data_loader_train = torch.utils.data.DataLoader(
         dataset_train,
@@ -110,12 +109,20 @@ def get_data(args, return_val=False):
 
 
 @torch.no_grad()
-def extract_features(model, data_loader, use_cuda=True, multiscale=False):
+def extract_features(model, data_loader, args, is_test=False, use_cuda=True, multiscale=False):
     metric_logger = utils.MetricLogger(delimiter="  ")
     features = None
+    distance_list = list()
+    cos_sim = nn.CosineSimilarity(dim=1, eps=1e-6)
     for samples, index in metric_logger.log_every(data_loader, 10):
         samples = samples.cuda(non_blocking=True)
         index = index.cuda(non_blocking=True)
+
+        if args.attack and is_test:
+            original_features = model(samples).detach()
+            samples = generate_attack(attack=args.attack, eps=args.eps, model=model, x=samples, target=original_features)
+            distance_list.append(1 - cos_sim(model(samples).detach(), original_features))
+            print(distance_list)
         if multiscale:
             feats = utils.multi_scale(samples, model)
         else:
@@ -153,6 +160,8 @@ def extract_features(model, data_loader, use_cuda=True, multiscale=False):
                 features.index_copy_(0, index_all, torch.cat(output_l))
             else:
                 features.index_copy_(0, index_all.cpu(), torch.cat(output_l).cpu())
+    root = args.load_features if args.load_features else args.dump_features
+    torch.save(distance_list, os.path.join(root, f'distance_list_{args.attack}_{args.eps}.pt'))
     return features
 
 
@@ -163,35 +172,14 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
     num_test_images, num_chunks = test_labels.shape[0], 100
     imgs_per_chunk = 64  # num_test_images // num_chunks
     retrieval_one_hot = torch.zeros(k, num_classes).to(train_features.device)
-    dataset_val = get_data(args, return_val=True)
-    data_loader = torch.utils.data.DataLoader(
-        dataset_val,
-        sampler=None,
-        batch_size=imgs_per_chunk,
-        num_workers=args.num_workers,
-        pin_memory=True,
-        drop_last=True,
-    )
-    metric_logger = utils.MetricLogger(delimiter="  ")
-    cos_sim = nn.CosineSimilarity(dim=1, eps=1e-6)
-    distance_list = list()
-    for idx, (x, _) in enumerate(metric_logger.log_every(data_loader, 1)):
-        # for idx in range(0, num_test_images, imgs_per_chunk):
-        # get the features for test images
-        idx *= imgs_per_chunk
+
+    for idx in range(0, num_test_images, imgs_per_chunk):
         targets = test_labels[idx: min((idx + imgs_per_chunk), num_test_images)]
         x = x.cuda()
-        if args.attack:
-            original_features = model(x).detach()
-            print(cos_sim(test_features[idx: min((idx + imgs_per_chunk), num_test_images), :], original_features))
-            x_adv = generate_attack(attack=args.attack, eps=args.eps, model=model, x=x, target=original_features)
-            # torch.zeros(x.shape[0]).cuda() dist_wrapper(model, original_features)
-            features = model(x_adv).detach()
-            distance_list.append(1 - cos_sim(features, original_features))
-        else:
-            features = test_features[
-                       idx: min((idx + imgs_per_chunk), num_test_images), :
-                       ]
+
+        features = test_features[
+                   idx: min((idx + imgs_per_chunk), num_test_images), :
+                   ]
 
         batch_size = targets.shape[0]
 
@@ -220,8 +208,7 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
         total += targets.size(0)
     top1 = top1 * 100.0 / total
     top5 = top5 * 100.0 / total
-    root = args.load_features if args.load_features else args.dump_features
-    torch.save(distance_list, os.path.join(root, f'distance_list_{args.attack}_{args.eps}.pt'))
+
     return top1, top5
 
 
