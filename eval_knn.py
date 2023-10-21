@@ -47,7 +47,7 @@ def extract_feature_pipeline(args, model):
     test_features = extract_features(model, data_loader_val, args.use_cuda, is_test=True)
 
     if utils.get_rank() == 0:
-        train_features = nn.functional.normalize(train_features, dim=1, p=2)
+        # train_features = nn.functional.normalize(train_features, dim=1, p=2)
         test_features = nn.functional.normalize(test_features, dim=1, p=2)
 
     train_labels = torch.tensor([s[-1] for s in dataset_train.samples]).long()
@@ -58,7 +58,8 @@ def extract_feature_pipeline(args, model):
         torch.save(test_features.cpu(), os.path.join(args.dump_features, "testfeat.pth"))
         torch.save(train_labels.cpu(), os.path.join(args.dump_features, "trainlabels.pth"))
         torch.save(test_labels.cpu(), os.path.join(args.dump_features, "testlabels.pth"))
-    return train_features, test_features, train_labels, test_labels
+
+    return test_features, test_labels #train_features, test_features, train_labels, test_labels
 
 
 def get_model(args):
@@ -252,9 +253,9 @@ if __name__ == '__main__':
 
     if args.load_features:
         train_features = torch.load(os.path.join(args.load_features, "trainfeat.pth"))
-        test_features = torch.load(os.path.join(args.load_features, "testfeat.pth"))
+        # test_features = torch.load(os.path.join(args.load_features, "testfeat.pth"))
         train_labels = torch.load(os.path.join(args.load_features, "trainlabels.pth"))
-        test_labels = torch.load(os.path.join(args.load_features, "testlabels.pth"))
+        # test_labels = torch.load(os.path.join(args.load_features, "testlabels.pth"))
     else:
         # need to extract features !
         train_features, test_features, train_labels, test_labels = extract_feature_pipeline(args, model)
