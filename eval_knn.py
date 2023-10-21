@@ -256,9 +256,9 @@ if __name__ == '__main__':
         # test_features = torch.load(os.path.join(args.load_features, "testfeat.pth"))
         train_labels = torch.load(os.path.join(args.load_features, "trainlabels.pth"))
         # test_labels = torch.load(os.path.join(args.load_features, "testlabels.pth"))
-    else:
+    #else:
         # need to extract features ! train_features, train_labels
-        test_features, test_labels = extract_feature_pipeline(args, model)
+    test_features, test_labels = extract_feature_pipeline(args, model)
 
     if utils.get_rank() == 0:
         if args.use_cuda:
