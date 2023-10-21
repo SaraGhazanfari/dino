@@ -175,12 +175,8 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
 
     for idx in range(0, num_test_images, imgs_per_chunk):
         targets = test_labels[idx: min((idx + imgs_per_chunk), num_test_images)]
-        x = x.cuda()
 
-        features = test_features[
-                   idx: min((idx + imgs_per_chunk), num_test_images), :
-                   ]
-
+        features = test_features[idx: min((idx + imgs_per_chunk), num_test_images), :]
         batch_size = targets.shape[0]
 
         # calculate the dot product and compute top-k neighbors
