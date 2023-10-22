@@ -121,8 +121,8 @@ def extract_features(model, data_loader, args, is_test=False, multiscale=False):
     for samples, index in metric_logger.log_every(data_loader, 10):
         samples = samples.cuda(non_blocking=True)
         index = index.cuda(non_blocking=True)
-
-        if args.attack and is_test:
+        attack = True if args.attack else False
+        if attack and is_test:
             original_features = model(samples).detach()
             samples = generate_attack(attack=args.attack, eps=args.eps, model=model, x=samples,
                                       target=original_features)
