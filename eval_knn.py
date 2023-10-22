@@ -157,7 +157,7 @@ def extract_features(model, data_loader, args, is_test=False, multiscale=False):
 
         # update storage feature matrix
         if dist.get_rank() == 0:
-            if use_cuda:
+            if args.use_cuda:
                 features.index_copy_(0, index_all, torch.cat(output_l))
             else:
                 features.index_copy_(0, index_all.cpu(), torch.cat(output_l).cpu())
