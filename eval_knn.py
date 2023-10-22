@@ -59,7 +59,7 @@ def extract_feature_pipeline(args, model):
         torch.save(train_labels.cpu(), os.path.join(args.dump_features, "trainlabels.pth"))
         torch.save(test_labels.cpu(), os.path.join(args.dump_features, "testlabels.pth"))
 
-    return test_features, test_labels #train_features, test_features, train_labels, test_labels
+    return test_features, test_labels  # train_features, test_features, train_labels, test_labels
 
 
 def get_model(args):
@@ -109,7 +109,6 @@ def get_data(args):
     return data_loader_train, data_loader_val, dataset_train, dataset_val
 
 
-@torch.no_grad()
 def extract_features(model, data_loader, args, is_test=False, multiscale=False):
     metric_logger = utils.MetricLogger(delimiter="  ")
     features = None
@@ -121,7 +120,8 @@ def extract_features(model, data_loader, args, is_test=False, multiscale=False):
 
         if args.attack and is_test:
             original_features = model(samples).detach()
-            samples = generate_attack(attack=args.attack, eps=args.eps, model=model, x=samples, target=original_features)
+            samples = generate_attack(attack=args.attack, eps=args.eps, model=model, x=samples,
+                                      target=original_features)
             distance_list.append(1 - cos_sim(model(samples).detach(), original_features))
             print(distance_list)
         if multiscale:
@@ -166,6 +166,7 @@ def extract_features(model, data_loader, args, is_test=False, multiscale=False):
     return features
 
 
+@torch.no_grad()
 def knn_classifier(train_features, train_labels, test_features, test_labels, k, args, model,
                    num_classes=1000):
     top1, top5, total = 0.0, 0.0, 0
@@ -256,8 +257,8 @@ if __name__ == '__main__':
         # test_features = torch.load(os.path.join(args.load_features, "testfeat.pth"))
         train_labels = torch.load(os.path.join(args.load_features, "trainlabels.pth"))
         # test_labels = torch.load(os.path.join(args.load_features, "testlabels.pth"))
-    #else:
-        # need to extract features ! train_features, train_labels
+    # else:
+    # need to extract features ! train_features, train_labels
     test_features, test_labels = extract_feature_pipeline(args, model)
 
     if utils.get_rank() == 0:
