@@ -44,7 +44,7 @@ def extract_feature_pipeline(args, model):
         train_labels = torch.load(os.path.join(args.load_features, "trainlabels.pth"))
     else:
         print("Extracting features for train set...")
-        train_features = extract_features(model, data_loader_train, args.use_cuda)
+        train_features = extract_features(model, data_loader_train, args)
         train_labels = torch.tensor([s[-1] for s in dataset_train.samples]).long()
 
     print(f"Data loaded with {len(dataset_train)} train and {len(dataset_val)} val imgs.")
@@ -121,8 +121,8 @@ def extract_features(model, data_loader, args, is_test=False, multiscale=False):
     for samples, index in metric_logger.log_every(data_loader, 10):
         samples = samples.cuda(non_blocking=True)
         index = index.cuda(non_blocking=True)
-        attack = True if args.attack else False
-        if attack and is_test:
+
+        if args.attack and is_test:
             original_features = model(samples).detach()
             samples = generate_attack(attack=args.attack, eps=args.eps, model=model, x=samples,
                                       target=original_features)
