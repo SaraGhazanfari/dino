@@ -164,8 +164,9 @@ def extract_features(model, data_loader, args, is_test=False, multiscale=False):
                 features.index_copy_(0, index_all, torch.cat(output_l))
             else:
                 features.index_copy_(0, index_all.cpu(), torch.cat(output_l).cpu())
-    root = args.load_features if args.load_features else args.dump_features
-    torch.save(distance_list, os.path.join(root, f'distance_list_{args.attack}_{args.eps}.pt'))
+    if args.attack and is_test:
+        root = args.load_features if args.load_features else args.dump_features
+        torch.save(distance_list, os.path.join(root, f'distance_list_{args.attack}_{args.eps}.pt'))
     return features
 
 
