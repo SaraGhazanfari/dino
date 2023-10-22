@@ -123,7 +123,6 @@ def extract_features(model, data_loader, args, is_test=False, multiscale=False):
             samples = generate_attack(attack=args.attack, eps=args.eps, model=model, x=samples,
                                       target=original_features)
             distance_list.append(1 - cos_sim(model(samples).detach(), original_features))
-            print(distance_list)
         if multiscale:
             feats = utils.multi_scale(samples, model)
         else:
