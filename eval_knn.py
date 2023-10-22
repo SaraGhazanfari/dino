@@ -39,10 +39,16 @@ def dist_wrapper(model, ref_features):
 def extract_feature_pipeline(args, model):
     # ============ preparing data ... ============
     data_loader_train, data_loader_val, dataset_train, dataset_val = get_data(args)
+    if args.load_features:
+        train_features = torch.load(os.path.join(args.load_features, "trainfeat.pth"))
+        train_labels = torch.load(os.path.join(args.load_features, "trainlabels.pth"))
+    else:
+        print("Extracting features for train set...")
+        train_features = extract_features(model, data_loader_train, args.use_cuda)
+        train_labels = torch.tensor([s[-1] for s in dataset_train.samples]).long()
+
     print(f"Data loaded with {len(dataset_train)} train and {len(dataset_val)} val imgs.")
-    # ============ extract features ... ============
-    print("Extracting features for train set...")
-    # train_features = extract_features(model, data_loader_train, args.use_cuda)
+
     print("Extracting features for val set...")
     test_features = extract_features(model=model, data_loader=data_loader_val, args=args, is_test=True)
 
@@ -50,14 +56,14 @@ def extract_feature_pipeline(args, model):
         # train_features = nn.functional.normalize(train_features, dim=1, p=2)
         test_features = nn.functional.normalize(test_features, dim=1, p=2)
 
-    train_labels = torch.tensor([s[-1] for s in dataset_train.samples]).long()
+
     test_labels = torch.tensor([s[-1] for s in dataset_val.samples]).long()
     # save features and labels
     if args.dump_features and dist.get_rank() == 0:
         torch.save(train_features.cpu(), os.path.join(args.dump_features, "trainfeat.pth"))
         torch.save(train_labels.cpu(), os.path.join(args.dump_features, "trainlabels.pth"))
 
-    return test_features, test_labels  # train_features, test_features, train_labels, test_labels
+    return train_features, test_features, train_labels, test_labels
 
 
 def get_model(args):
@@ -248,15 +254,8 @@ if __name__ == '__main__':
 
     # ============ preparing model ... ============
     model = get_model(args)
-
-    if args.load_features:
-        train_features = torch.load(os.path.join(args.load_features, "trainfeat.pth"))
-        # test_features = torch.load(os.path.join(args.load_features, "testfeat.pth"))
-        train_labels = torch.load(os.path.join(args.load_features, "trainlabels.pth"))
-        # test_labels = torch.load(os.path.join(args.load_features, "testlabels.pth"))
-    # else:
     # need to extract features ! train_features, train_labels
-    test_features, test_labels = extract_feature_pipeline(args, model)
+    train_features, test_features, train_labels, test_labels = extract_feature_pipeline(args, model)
 
     if utils.get_rank() == 0:
         if args.use_cuda:
