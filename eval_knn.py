@@ -44,7 +44,7 @@ def extract_feature_pipeline(args, model):
     print("Extracting features for train set...")
     # train_features = extract_features(model, data_loader_train, args.use_cuda)
     print("Extracting features for val set...")
-    test_features = extract_features(model, data_loader_val, args.use_cuda, is_test=True)
+    test_features = extract_features(model=model, data_loader=data_loader_val, args=args, is_test=True)
 
     if utils.get_rank() == 0:
         # train_features = nn.functional.normalize(train_features, dim=1, p=2)
@@ -110,7 +110,7 @@ def get_data(args):
 
 
 @torch.no_grad()
-def extract_features(model, data_loader, args, is_test=False, use_cuda=True, multiscale=False):
+def extract_features(model, data_loader, args, is_test=False, multiscale=False):
     metric_logger = utils.MetricLogger(delimiter="  ")
     features = None
     distance_list = list()
@@ -132,7 +132,7 @@ def extract_features(model, data_loader, args, is_test=False, use_cuda=True, mul
         # init storage feature matrix
         if dist.get_rank() == 0 and features is None:
             features = torch.zeros(len(data_loader.dataset), feats.shape[-1])
-            if use_cuda:
+            if args.use_cuda:
                 features = features.cuda(non_blocking=True)
             print(f"Storing features into tensor of shape {features.shape}")
 
