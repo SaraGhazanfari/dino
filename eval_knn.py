@@ -55,9 +55,7 @@ def extract_feature_pipeline(args, model):
     # save features and labels
     if args.dump_features and dist.get_rank() == 0:
         torch.save(train_features.cpu(), os.path.join(args.dump_features, "trainfeat.pth"))
-        torch.save(test_features.cpu(), os.path.join(args.dump_features, "testfeat.pth"))
         torch.save(train_labels.cpu(), os.path.join(args.dump_features, "trainlabels.pth"))
-        torch.save(test_labels.cpu(), os.path.join(args.dump_features, "testlabels.pth"))
 
     return test_features, test_labels  # train_features, test_features, train_labels, test_labels
 
