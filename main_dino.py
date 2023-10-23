@@ -187,12 +187,16 @@ def train_dino(args):
         print(f"Unknow architecture: {args.arch}")
     print(f'embed dim is: {embed_dim}, output_dim: {args.out_dim}')
     # multi-crop wrapper handles forward with inputs of different resolutions
-    student = utils.MultiCropWrapper(student, DINOHead(
-        embed_dim,
-        args.out_dim,
-        use_bn=args.use_bn_in_head,
-        norm_last_layer=args.norm_last_layer,
-    ))
+    # todo student = utils.MultiCropWrapper(student, DINOHead(
+    #     embed_dim,
+    #     args.out_dim,
+    #     use_bn=args.use_bn_in_head,
+    #     norm_last_layer=args.norm_last_layer,
+    # ))
+    student = utils.MultiCropWrapper(
+        student,
+        DINOHead(embed_dim, args.out_dim, args.use_bn_in_head),
+    )
     teacher = utils.MultiCropWrapper(
         teacher,
         DINOHead(embed_dim, args.out_dim, args.use_bn_in_head),
@@ -412,7 +416,8 @@ class DINOLoss(nn.Module):
         Cross-entropy between softmax outputs of the teacher and student networks.
         """
         student_out = student_output / self.student_temp
-        student_out = student_out.chunk(self.ncrops)
+        #todo student_out = student_out.chunk(self.ncrops)
+        student_out = student_out.chunk(2)
 
         # teacher centering and sharpening
         temp = self.teacher_temp_schedule[epoch]
@@ -489,8 +494,8 @@ class DataAugmentationDINO(object):
         crops = []
         crops.append(self.global_transfo1(image))
         crops.append(self.global_transfo2(image))
-        for _ in range(self.local_crops_number):
-            crops.append(self.local_transfo(image))
+        # for _ in range(self.local_crops_number):
+        #     crops.append(self.local_transfo(image))
         return crops
 
 
