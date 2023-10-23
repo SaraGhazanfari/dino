@@ -429,6 +429,7 @@ class DINOLoss(nn.Module):
                 loss = torch.sum(-q * F.log_softmax(student_out[v], dim=-1), dim=-1)
                 total_loss += loss.mean()
                 n_loss_terms += 1
+                print(total_loss)
         total_loss /= n_loss_terms
         self.update_center(teacher_output)
         return total_loss
