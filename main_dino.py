@@ -141,13 +141,13 @@ def train_dino(args):
     print("git:\n  {}\n".format(utils.get_sha()))
     print("\n".join("%s: %s" % (k, str(v)) for k, v in sorted(dict(vars(args)).items())))
     cudnn.benchmark = True
-    #todo no_aug = True if args.no_aug else False
+    # no_aug = True if args.no_aug else False
     # ============ preparing data ... ============
     transform = DataAugmentationDINO(
         args.global_crops_scale,
         args.local_crops_scale,
         args.local_crops_number)
-        #todo no_aug
+        # no_aug
 
     dataset = datasets.ImageFolder(args.data_path, transform=transform)
     subset_size = {
@@ -158,6 +158,7 @@ def train_dino(args):
         1.0: 256_233 * 5,
     }
     indices = torch.randperm(len(dataset))[:subset_size[args.subset]]
+    torch.save(indices,  os.path.join(args.output_dir, "indices.pt"))
     subset_of_dataset = torch.utils.data.Subset(dataset, indices=indices)
     sampler = torch.utils.data.DistributedSampler(subset_of_dataset, shuffle=True)
     data_loader = torch.utils.data.DataLoader(
@@ -235,7 +236,7 @@ def train_dino(args):
         args.teacher_temp,
         args.warmup_teacher_temp_epochs,
         args.epochs).cuda()
-        # todo no_aug
+        # no_aug
 
 
     # # ============ preparing optimizer ... ============
