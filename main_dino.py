@@ -203,11 +203,6 @@ def train_dino(args):
         use_bn=args.use_bn_in_head,
         norm_last_layer=args.norm_last_layer,
     ))
-    if no_aug:
-        student = utils.MultiCropWrapper(
-            student,
-            DINOHead(embed_dim, args.out_dim, args.use_bn_in_head),
-        )
     teacher = utils.MultiCropWrapper(
         teacher,
         DINOHead(embed_dim, args.out_dim, args.use_bn_in_head),
