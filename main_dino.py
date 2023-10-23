@@ -141,14 +141,13 @@ def train_dino(args):
     print("git:\n  {}\n".format(utils.get_sha()))
     print("\n".join("%s: %s" % (k, str(v)) for k, v in sorted(dict(vars(args)).items())))
     cudnn.benchmark = True
-    no_aug = True if args.no_aug else False
+    #todo no_aug = True if args.no_aug else False
     # ============ preparing data ... ============
     transform = DataAugmentationDINO(
         args.global_crops_scale,
         args.local_crops_scale,
-        args.local_crops_number,
-        no_aug
-    )
+        args.local_crops_number)
+        #todo no_aug
 
     dataset = datasets.ImageFolder(args.data_path, transform=transform)
     subset_size = {
@@ -235,9 +234,9 @@ def train_dino(args):
         args.warmup_teacher_temp,
         args.teacher_temp,
         args.warmup_teacher_temp_epochs,
-        args.epochs,
-        no_aug
-    ).cuda()
+        args.epochs).cuda()
+        # todo no_aug
+
 
     # # ============ preparing optimizer ... ============
     params_groups = utils.get_params_groups(student)
@@ -447,7 +446,7 @@ class DINOLoss(nn.Module):
 
 
 class DataAugmentationDINO(object):
-    def __init__(self, global_crops_scale, local_crops_scale, local_crops_number, no_aug):
+    def __init__(self, global_crops_scale, local_crops_scale, local_crops_number, no_aug=False):
         flip_and_color_jitter = transforms.Compose([
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.RandomApply(
