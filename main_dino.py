@@ -131,6 +131,7 @@ def get_args_parser():
     parser.add_argument("--local_rank", default=0, type=int, help="Please ignore and do not set this argument.")
     parser.add_argument('--subset', default=1, type=float, choices=[0.2, 0.4, 0.6, 0.8, 1.0],
                         help='determines the portion of dataset to be used for training')
+    parser.add_argument("--no_aug", action='store_true', help="Execute with local machine instead of slurm.")
     return parser
 
 
@@ -140,20 +141,22 @@ def train_dino(args):
     print("git:\n  {}\n".format(utils.get_sha()))
     print("\n".join("%s: %s" % (k, str(v)) for k, v in sorted(dict(vars(args)).items())))
     cudnn.benchmark = True
-
+    no_aug = True if args.no_aug else False
     # ============ preparing data ... ============
     transform = DataAugmentationDINO(
         args.global_crops_scale,
         args.local_crops_scale,
         args.local_crops_number,
+        no_aug
     )
+
     dataset = datasets.ImageFolder(args.data_path, transform=transform)
     subset_size = {
         0.2: 256_233,
-        0.4: 256_233*2,
-        0.6: 256_233*3,
-        0.8: 256_233*4,
-        1.0: 256_233*5,
+        0.4: 256_233 * 2,
+        0.6: 256_233 * 3,
+        0.8: 256_233 * 4,
+        1.0: 256_233 * 5,
     }
     indices = torch.randperm(len(dataset))[:subset_size[args.subset]]
     subset_of_dataset = torch.utils.data.Subset(dataset, indices=indices)
@@ -200,6 +203,11 @@ def train_dino(args):
         use_bn=args.use_bn_in_head,
         norm_last_layer=args.norm_last_layer,
     ))
+    if no_aug:
+        student = utils.MultiCropWrapper(
+            student,
+            DINOHead(embed_dim, args.out_dim, args.use_bn_in_head),
+        )
     teacher = utils.MultiCropWrapper(
         teacher,
         DINOHead(embed_dim, args.out_dim, args.use_bn_in_head),
@@ -233,6 +241,7 @@ def train_dino(args):
         args.teacher_temp,
         args.warmup_teacher_temp_epochs,
         args.epochs,
+        no_aug
     ).cuda()
 
     # # ============ preparing optimizer ... ============
@@ -385,11 +394,12 @@ def train_one_epoch(student, teacher, teacher_without_ddp, dino_loss, data_loade
 class DINOLoss(nn.Module):
     def __init__(self, out_dim, ncrops, warmup_teacher_temp, teacher_temp,
                  warmup_teacher_temp_epochs, nepochs, student_temp=0.1,
-                 center_momentum=0.9):
+                 center_momentum=0.9, no_aug=False):
         super().__init__()
         self.student_temp = student_temp
         self.center_momentum = center_momentum
         self.ncrops = ncrops
+        self.no_aug = no_aug
         self.register_buffer("center", torch.zeros(1, out_dim))
         # we apply a warm up for the teacher temperature because
         # a too high temperature makes the training instable at the beginning
@@ -404,7 +414,10 @@ class DINOLoss(nn.Module):
         Cross-entropy between softmax outputs of the teacher and student networks.
         """
         student_out = student_output / self.student_temp
-        student_out = student_out.chunk(self.ncrops)
+        if self.no_aug:
+            student_out = student_out.chunk(2)
+        else:
+            student_out = student_out.chunk(self.ncrops)
 
         # teacher centering and sharpening
         temp = self.teacher_temp_schedule[epoch]
@@ -439,7 +452,7 @@ class DINOLoss(nn.Module):
 
 
 class DataAugmentationDINO(object):
-    def __init__(self, global_crops_scale, local_crops_scale, local_crops_number):
+    def __init__(self, global_crops_scale, local_crops_scale, local_crops_number, no_aug):
         flip_and_color_jitter = transforms.Compose([
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.RandomApply(
@@ -476,13 +489,15 @@ class DataAugmentationDINO(object):
             utils.GaussianBlur(p=0.5),
             normalize,
         ])
+        self.no_aug = no_aug
 
     def __call__(self, image):
         crops = []
         crops.append(self.global_transfo1(image))
         crops.append(self.global_transfo2(image))
-        for _ in range(self.local_crops_number):
-            crops.append(self.local_transfo(image))
+        if not self.no_aug:
+            for _ in range(self.local_crops_number):
+                crops.append(self.local_transfo(image))
         return crops
 
 
