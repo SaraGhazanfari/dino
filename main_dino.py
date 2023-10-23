@@ -131,7 +131,7 @@ def get_args_parser():
     parser.add_argument("--local_rank", default=0, type=int, help="Please ignore and do not set this argument.")
     parser.add_argument('--subset', default=1, type=float, choices=[0.2, 0.4, 0.6, 0.8, 1.0],
                         help='determines the portion of dataset to be used for training')
-    parser.add_argument("--no_aug", action='store_true', help="Execute with local machine instead of slurm.")
+    # parser.add_argument("--no_aug", action='store_true', help="Execute with local machine instead of slurm.")
     return parser
 
 
@@ -429,7 +429,6 @@ class DINOLoss(nn.Module):
                 loss = torch.sum(-q * F.log_softmax(student_out[v], dim=-1), dim=-1)
                 total_loss += loss.mean()
                 n_loss_terms += 1
-                print(total_loss)
         total_loss /= n_loss_terms
         self.update_center(teacher_output)
         return total_loss
