@@ -21,6 +21,7 @@ import requests
 from io import BytesIO
 
 import skimage.io
+from advertorch.attacks import L2PGDAttack
 from skimage.measure import find_contours
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
@@ -168,14 +169,19 @@ if __name__ == '__main__':
         pth_transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
     ])
     img = transform(img)
+    adversary = L2PGDAttack(model, loss_fn=nn.MSELoss(), eps=0.5, nb_iter=1,
+                            rand_init=True, targeted=False, eps_iter=0.01, clip_min=0.0, clip_max=1.0)
 
-    # make the image divisible by the patch size
+    img = adversary(img.unsqueeze(0), model(img.unsqueeze(0))).squeeze(0)
+
+
+# make the image divisible by the patch size
     w, h = img.shape[1] - img.shape[1] % args.patch_size, img.shape[2] - img.shape[2] % args.patch_size
     img = img[:, :w, :h].unsqueeze(0)
 
     w_featmap = img.shape[-2] // args.patch_size
     h_featmap = img.shape[-1] // args.patch_size
-
+    print(model)
     attentions = model.get_last_selfattention(img.to(device))
 
     nh = attentions.shape[1] # number of head
@@ -201,13 +207,14 @@ if __name__ == '__main__':
 
     # save attentions heatmaps
     os.makedirs(args.output_dir, exist_ok=True)
-    torchvision.utils.save_image(torchvision.utils.make_grid(img, normalize=True, scale_each=True), os.path.join(args.output_dir, "img.png"))
+    torchvision.utils.save_image(torchvision.utils.make_grid(img, normalize=True, scale_each=True), os.path.join(args.output_dir,
+                                                                                                                 "clean image/img.png"))
     for j in range(nh):
         fname = os.path.join(args.output_dir, "attn-head" + str(j) + ".png")
         plt.imsave(fname=fname, arr=attentions[j], format='png')
         print(f"{fname} saved.")
 
     if args.threshold is not None:
-        image = skimage.io.imread(os.path.join(args.output_dir, "img.png"))
+        image = skimage.io.imread(os.path.join(args.output_dir, "clean image/img.png"))
         for j in range(nh):
             display_instances(image, th_attn[j], fname=os.path.join(args.output_dir, "mask_th" + str(args.threshold) + "_head" + str(j) +".png"), blur=False)
