@@ -161,7 +161,8 @@ def train_dino(args):
         args.local_crops_number)
     # no_aug
 
-    dataset = datasets.ImageFolder(args.data_path, transform=transform)
+    dataset = ImageFolderEX(args.data_path, transform=transform)
+    # datasets.ImageFolder(args.data_path, transform=transform)
     subset_size = {
         0.2: 256_233,
         0.4: 256_233 * 2,
