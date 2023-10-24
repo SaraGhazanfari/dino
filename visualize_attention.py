@@ -169,11 +169,14 @@ if __name__ == '__main__':
         pth_transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
     ])
     img = transform(img)
-    adversary = L2PGDAttack(model, loss_fn=nn.MSELoss(), eps=0.5, nb_iter=1,
+    adversary = L2PGDAttack(model, loss_fn=nn.MSELoss(), eps=0.5, nb_iter=100,
                             rand_init=True, targeted=False, eps_iter=0.01, clip_min=0.0, clip_max=1.0)
 
-    img = adversary(img.unsqueeze(0), model(img.unsqueeze(0))).squeeze(0)
-
+    img_adv = adversary.perturb(img.unsqueeze(0), model(img.unsqueeze(0)))
+    print(img_adv.shape)
+    print(torch.norm(img-img_adv.squeeze(0), p=2))
+    print(torch.norm(model(img.unsqueeze(0))-model(img_adv), p=2))
+    img = img_adv.squeeze(0)
 
 # make the image divisible by the patch size
     w, h = img.shape[1] - img.shape[1] % args.patch_size, img.shape[2] - img.shape[2] % args.patch_size
@@ -181,7 +184,7 @@ if __name__ == '__main__':
 
     w_featmap = img.shape[-2] // args.patch_size
     h_featmap = img.shape[-1] // args.patch_size
-    print(model)
+
     attentions = model.get_last_selfattention(img.to(device))
 
     nh = attentions.shape[1] # number of head
