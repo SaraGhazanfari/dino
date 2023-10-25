@@ -136,8 +136,10 @@ def get_args_parser():
 
 
 class ImageFolderEX(datasets.ImageFolder):
+    index_freq_dict = dict()
+
     def __getitem__(self, index):
-        print(index)
+        ImageFolderEX.index_freq_dict[index] = ImageFolderEX.index_freq_dict.get(index, 0) + 1
         path, label = self.imgs[index]
         try:
             img = self.transform(self.loader(os.path.join(self.root, path)))
@@ -305,12 +307,16 @@ def train_dino(args):
     #         head_param += param.data.numel()
     # print(f'{backbone_param} backbone parameters, {head_param} head parameters')
     # print(f"Starting DINO training with {param_num} parameters!")
-    for epoch in range(0, args.epochs): #todo start_epoch
+    for epoch in range(0, args.epochs):  # todo start_epoch
         data_loader.sampler.set_epoch(epoch)
         metric_logger = utils.MetricLogger(delimiter="  ")
         header = 'Epoch: [{}/{}]'.format(epoch, args.epochs)
         for it, (images, _) in enumerate(metric_logger.log_every(data_loader, 10, header)):
             continue
+
+        for key, value in ImageFolderEX.index_freq_dict.items():
+            print(key, value)
+        print(len(ImageFolderEX.index_freq_dict.keys()))
 #         # ============ training one epoch of DINO ... ============
 #         train_stats = train_one_epoch(student, teacher, teacher_without_ddp, dino_loss,
 #                                       data_loader, optimizer, lr_schedule, wd_schedule, momentum_schedule,
