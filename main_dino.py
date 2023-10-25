@@ -140,7 +140,8 @@ class ImageFolderEX(datasets.ImageFolder):
 
     def __getitem__(self, index):
         ImageFolderEX.index_freq_dict[index] = ImageFolderEX.index_freq_dict.get(index, 0) + 1
-        return [self.transform(torch.zeros((3,224,244))), 0]
+        import numpy as np
+        return [self.transform(np.zeros((3, 224, 244))), 0]
         # path, label = self.imgs[index]
         # try:
         #     img = self.transform(self.loader(os.path.join(self.root, path)))
@@ -148,7 +149,7 @@ class ImageFolderEX(datasets.ImageFolder):
         #     print(e)
         #     path, label = self.imgs[index - 1]
         #     img = self.transform(self.loader(os.path.join(self.root, path)))
-        #return [img, label]
+        # return [img, label]
 
 
 def train_dino(args):
@@ -317,6 +318,8 @@ def train_dino(args):
         for key, value in ImageFolderEX.index_freq_dict.items():
             print(key, value)
         print(len(ImageFolderEX.index_freq_dict.keys()))
+
+
 #         # ============ training one epoch of DINO ... ============
 #         train_stats = train_one_epoch(student, teacher, teacher_without_ddp, dino_loss,
 #                                       data_loader, optimizer, lr_schedule, wd_schedule, momentum_schedule,
