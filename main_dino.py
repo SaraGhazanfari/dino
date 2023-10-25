@@ -137,11 +137,14 @@ def get_args_parser():
 
 class ImageFolderEX(datasets.ImageFolder):
     index_freq_dict = dict()
+    first_img = None
 
     def __getitem__(self, index):
         ImageFolderEX.index_freq_dict[index] = ImageFolderEX.index_freq_dict.get(index, 0) + 1
-        import numpy as np
-        return [self.transform(np.zeros((3, 224, 244))), 0]
+        if not ImageFolderEX.first_img:
+            path, label = self.imgs[index]
+            ImageFolderEX.first_img = self.transform(self.loader(os.path.join(self.root, path)))
+        return ImageFolderEX.first_img, 0
         # path, label = self.imgs[index]
         # try:
         #     img = self.transform(self.loader(os.path.join(self.root, path)))
