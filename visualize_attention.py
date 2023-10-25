@@ -37,7 +37,9 @@ from PIL import Image
 import utils
 import vision_transformer as vits
 from attack.attack import generate_attack
-from utils.visualization_utils import visualize_att_map
+from dino_utils.visualization_utils import visualize_att_map
+
+from eval_knn import ReturnIndexDataset
 
 
 def apply_mask(image, mask, color, alpha=0.5):
@@ -165,6 +167,23 @@ def load_dino_model():
     return model
 
 
+def load_data(args):
+    transform = pth_transforms.Compose([
+        pth_transforms.Resize(256, interpolation=3),
+        pth_transforms.CenterCrop(224),
+        pth_transforms.ToTensor(),
+    ])
+    dataset_val = ReturnIndexDataset(os.path.join(args.data_path, "val"), transform=transform)
+    data_loader_val = torch.utils.data.DataLoader(
+        dataset_val,
+        batch_size=args.batch_size_per_gpu,
+        num_workers=args.num_workers,
+        pin_memory=True,
+        drop_last=False,
+    )
+    return data_loader_val
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Visualize Self-Attention maps')
     parser.add_argument('--model_name', default='dino', type=str,
@@ -186,3 +205,5 @@ if __name__ == '__main__':
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     # build model
     dino_model = load_dino_model()
+    dataloader = load_data(args)
+    main(dataloader, args, dino_model, 'dino_model', device)

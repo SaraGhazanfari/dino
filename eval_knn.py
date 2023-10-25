@@ -224,6 +224,8 @@ if __name__ == '__main__':
         distributed training; see https://pytorch.org/docs/stable/distributed.html""")
     parser.add_argument("--local_rank", default=0, type=int, help="Please ignore and do not set this argument.")
     parser.add_argument('--data_path', default='/path/to/imagenet/', type=str)
+    parser.add_argument("--attack", default=None, type=str, help='Attack L2, Linf')
+    parser.add_argument('--eps', default=1.0, type=float, help='Perturbation budget for attack')
     args = parser.parse_args()
 
     utils.init_distributed_mode(args)
