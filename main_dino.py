@@ -309,9 +309,7 @@ def train_dino(args):
     # print(f"Starting DINO training with {param_num} parameters!")
     for epoch in range(0, args.epochs):  # todo start_epoch
         data_loader.sampler.set_epoch(epoch)
-        metric_logger = utils.MetricLogger(delimiter="  ")
-        header = 'Epoch: [{}/{}]'.format(epoch, args.epochs)
-        for it, (images, _) in enumerate(metric_logger.log_every(data_loader, 10, header)):
+        for it, (images, _) in enumerate(data_loader):
             continue
 
         for key, value in ImageFolderEX.index_freq_dict.items():
