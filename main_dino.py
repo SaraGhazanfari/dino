@@ -140,7 +140,7 @@ class ImageFolderEX(datasets.ImageFolder):
 
     def __getitem__(self, index):
         ImageFolderEX.index_freq_dict[index] = ImageFolderEX.index_freq_dict.get(index, 0) + 1
-        return [torch.zeros((3,224,244)), 0]
+        return [self.transform(torch.zeros((3,224,244))), 0]
         # path, label = self.imgs[index]
         # try:
         #     img = self.transform(self.loader(os.path.join(self.root, path)))
