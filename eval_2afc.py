@@ -1,22 +1,51 @@
-def dreamsim_eval(self):
-    data_loader, dataset_size = NightDataset(config=self.config, batch_size=self.config.batch_size,
+import torch
+from torch import nn
+from tqdm import tqdm
+
+from data.night_dataset import NightDataset
+
+
+def dreamsim_eval():
+    data_loader, dataset_size = NightDataset(config=config, batch_size=config.batch_size,
                                              split='test_imagenet').get_dataloader()
-    no_imagenet_data_loader, no_imagenet_dataset_size = NightDataset(config=self.config,
-                                                                     batch_size=self.config.batch_size,
+    no_imagenet_data_loader, no_imagenet_dataset_size = NightDataset(config=config,
+                                                                     batch_size=config.batch_size,
                                                                      split='test_no_imagenet').get_dataloader()
     print(len(data_loader), len(no_imagenet_data_loader))
-    imagenet_score = self.get_2afc_score_eval(data_loader)
-    logging.info(f"ImageNet 2AFC score: {str(imagenet_score)}")
+    imagenet_score = get_2afc_score_eval(data_loader)
+    print(f"ImageNet 2AFC score: {str(imagenet_score)}")
     torch.cuda.empty_cache()
-    no_imagenet_score = self.get_2afc_score_eval(no_imagenet_data_loader)
-    logging.info(f"No ImageNet 2AFC score: {str(no_imagenet_score)}")
+    no_imagenet_score = get_2afc_score_eval(no_imagenet_data_loader)
+    print(f"No ImageNet 2AFC score: {str(no_imagenet_score)}")
     overall_score = (imagenet_score * dataset_size + no_imagenet_score * no_imagenet_dataset_size) / (
             dataset_size + no_imagenet_dataset_size)
-    logging.info(f"Overall 2AFC score: {str(overall_score)}")
+    print(f"Overall 2AFC score: {str(overall_score)}")
 
 
-def get_2afc_score_eval(self, test_loader):
-    logging.info("Evaluating NIGHTS dataset.")
+def one_step_2afc_score_eval(img_ref, img_left, img_right, target):
+    # if self.config.attack:
+    #     img_ref = self.generate_attack(img_ref, img_left, img_right, target, target_model=self.model_wrapper())
+    dist_0, dist_1, _ = get_cosine_score_between_images(img_ref, img_left, img_right)
+    if len(dist_0.shape) < 1:
+        dist_0 = dist_0.unsqueeze(0)
+        dist_1 = dist_1.unsqueeze(0)
+    dist_0 = dist_0.unsqueeze(1)
+    dist_1 = dist_1.unsqueeze(1)
+    target = target.unsqueeze(1)
+    return dist_0, dist_1, target
+
+
+def get_2afc_score(d0s, d1s, targets):
+    d0s = torch.cat(d0s, dim=0)
+    d1s = torch.cat(d1s, dim=0)
+    targets = torch.cat(targets, dim=0)
+    scores = (d0s < d1s) * (1.0 - targets) + (d1s < d0s) * targets + (d1s == d0s) * 0.5
+    twoafc_score = torch.mean(scores)
+    return twoafc_score
+
+
+def get_2afc_score_eval(test_loader):
+    print("Evaluating NIGHTS dataset.")
     d0s = []
     d1s = []
     targets = []
@@ -24,10 +53,32 @@ def get_2afc_score_eval(self, test_loader):
     for i, (img_ref, img_left, img_right, target, idx) in tqdm(enumerate(test_loader), total=len(test_loader)):
         img_ref, img_left, img_right, target = img_ref.cuda(), img_left.cuda(), \
             img_right.cuda(), target.cuda()
-        dist_0, dist_1, target = self.one_step_2afc_score_eval(img_ref, img_left, img_right, target)
+        dist_0, dist_1, target = one_step_2afc_score_eval(img_ref, img_left, img_right, target)
         d0s.append(dist_0)
         d1s.append(dist_1)
         targets.append(target)
 
     twoafc_score = get_2afc_score(d0s, d1s, targets)
     return twoafc_score
+
+
+def get_cosine_score_between_images(model, img_ref, img_left, img_right, requires_grad=False,
+                                    requires_normalization=False):
+    cos_sim = nn.CosineSimilarity(dim=1, eps=1e-6)
+    embed_ref = model(img_ref)
+    if not requires_grad:
+        embed_ref = embed_ref.detach()
+    embed_x0 = model(img_left).detach()
+    embed_x1 = model(img_right).detach()
+    if requires_normalization:
+        norm_ref = torch.norm(embed_ref, p=2, dim=(1)).unsqueeze(1)
+        embed_ref = embed_ref / norm_ref
+        norm_x_0 = torch.norm(embed_x0, p=2, dim=(1)).unsqueeze(1)
+        embed_x0 = embed_x0 / norm_x_0
+        norm_x_1 = torch.norm(embed_x1, p=2, dim=(1)).unsqueeze(1)
+        embed_x1 = embed_x1 / norm_x_1
+
+    bound = torch.norm(embed_x0 - embed_x1, p=2, dim=(1)).unsqueeze(1)
+    dist_0 = 1 - cos_sim(embed_ref, embed_x0)
+    dist_1 = 1 - cos_sim(embed_ref, embed_x1)
+    return dist_0, dist_1, bound

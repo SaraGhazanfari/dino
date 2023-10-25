@@ -11,11 +11,10 @@ from torch.utils.data import DataLoader
 
 class NightDataset(Dataset):
 
-    def __init__(self, config, batch_size, is_training=True, is_distributed=False, num_workers=4,
-                 split: str = "test_imagenet",
+    def __init__(self, root_dir, batch_size, num_workers=4, split: str = "test_imagenet",
                  interpolation: transforms.InterpolationMode = transforms.InterpolationMode.BICUBIC,
                  preprocess: str = "DEFAULT", **kwargs):
-        self.root_dir = config.data_dir
+        self.root_dir = root_dir
         self.num_workers = num_workers
         self.csv = pd.read_csv(os.path.join(self.root_dir, "data.csv"))
         self.csv = self.csv[self.csv['votes'] >= 6]  # Filter out triplets with less than 6 unanimous votes
@@ -27,10 +26,10 @@ class NightDataset(Dataset):
         self.means = (0.0000, 0.0000, 0.0000)
         self.stds = (1.0000, 1.0000, 1.0000)
         self.n_classes = {
-          'ensemble': 1792,
-          'dino_vitb16': 768,
-          'open_clip_vitb32': 512,
-          'clip_vitb32': 512,
+            'ensemble': 1792,
+            'dino_vitb16': 768,
+            'open_clip_vitb32': 512,
+            'clip_vitb32': 512,
         }[config.teacher_model_name]
         if self.split == "train" or self.split == "val":
             self.csv = self.csv[self.csv["split"] == split]

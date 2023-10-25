@@ -139,7 +139,6 @@ class ImageFolderEX(datasets.ImageFolder):
     index_freq_dict = dict()
 
     def __getitem__(self, index):
-        ImageFolderEX.index_freq_dict[index] = ImageFolderEX.index_freq_dict.get(index, 0) + 1
         path, label = self.imgs[index]
         try:
             img = self.transform(self.loader(os.path.join(self.root, path)))
@@ -147,7 +146,7 @@ class ImageFolderEX(datasets.ImageFolder):
             print(e)
             path, label = self.imgs[index - 1]
             img = self.transform(self.loader(os.path.join(self.root, path)))
-        return [img, label]
+        return [img, label, index]
 
 
 def train_dino(args):
@@ -307,13 +306,19 @@ def train_dino(args):
     #         head_param += param.data.numel()
     # print(f'{backbone_param} backbone parameters, {head_param} head parameters')
     # print(f"Starting DINO training with {param_num} parameters!")
+    index_freq_dict = dict()
     for epoch in range(0, args.epochs):  # todo start_epoch
         data_loader.sampler.set_epoch(epoch)
-        for it, (images, _) in enumerate(data_loader):
+        for it, (images, _, index) in enumerate(data_loader):
             print(it)
-            for key, value in ImageFolderEX.index_freq_dict.items():
-                print(key, value)
-            print(len(ImageFolderEX.index_freq_dict.keys()))
+            for idx in index:
+                index_freq_dict[idx] = index_freq_dict.get(idx, 0) + 1
+                print(idx, index_freq_dict[idx])
+
+            print(len(index_freq_dict.keys()))
+        for key, value in index_freq_dict.items():
+            print(key, value)
+        print(len(index_freq_dict.keys()))
 
 
 #         # ============ training one epoch of DINO ... ============
