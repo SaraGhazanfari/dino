@@ -311,11 +311,9 @@ def train_dino(args):
         data_loader.sampler.set_epoch(epoch)
         for it, (images, _) in enumerate(data_loader):
             print(it)
-            continue
-
-        for key, value in ImageFolderEX.index_freq_dict.items():
-            print(key, value)
-        print(len(ImageFolderEX.index_freq_dict.keys()))
+            for key, value in ImageFolderEX.index_freq_dict.items():
+                print(key, value)
+            print(len(ImageFolderEX.index_freq_dict.keys()))
 
 
 #         # ============ training one epoch of DINO ... ============
