@@ -5,8 +5,28 @@ from PIL import Image
 from torchvision import transforms
 from torch.utils.data import Dataset
 
-from core.utils import get_preprocess_fn
 from torch.utils.data import DataLoader
+
+
+def get_preprocess_fn(preprocess, load_size, interpolation):
+    if preprocess == "LPIPS":
+        t = transforms.ToTensor()
+        return lambda pil_img: t(pil_img.convert("RGB")) / 0.5 - 1.
+    if preprocess == "DEFAULT":
+        t = transforms.Compose([
+            transforms.Resize((load_size, load_size), interpolation=interpolation),
+            transforms.ToTensor()
+        ])
+    elif preprocess == "DISTS":
+        t = transforms.Compose([
+            transforms.Resize((256, 256)),
+            transforms.ToTensor()
+        ])
+    elif preprocess == "SSIM" or preprocess == "PSNR":
+        t = transforms.ToTensor()
+    else:
+        raise ValueError("Unknown preprocessing method")
+    return lambda pil_img: t(pil_img.convert("RGB"))
 
 
 class NightDataset(Dataset):
@@ -25,12 +45,7 @@ class NightDataset(Dataset):
         self.preprocess_fn = get_preprocess_fn(preprocess, 224, self.interpolation)
         self.means = (0.0000, 0.0000, 0.0000)
         self.stds = (1.0000, 1.0000, 1.0000)
-        self.n_classes = {
-            'ensemble': 1792,
-            'dino_vitb16': 768,
-            'open_clip_vitb32': 512,
-            'clip_vitb32': 512,
-        }[config.teacher_model_name]
+
         if self.split == "train" or self.split == "val":
             self.csv = self.csv[self.csv["split"] == split]
         elif split == 'test_imagenet':
