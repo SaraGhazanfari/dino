@@ -166,15 +166,15 @@ if __name__ == '__main__':
     transform = pth_transforms.Compose([
         pth_transforms.Resize(args.image_size),
         pth_transforms.ToTensor(),
-        pth_transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+        #pth_transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
     ])
     img = transform(img)
+    import time
+    start = time.time()
     adversary = L2PGDAttack(model, loss_fn=nn.MSELoss(), eps=0.5, nb_iter=100,
                             rand_init=True, targeted=False, eps_iter=0.01, clip_min=0.0, clip_max=1.0)
-
     img_adv = adversary.perturb(img.unsqueeze(0), model(img.unsqueeze(0)))
-    print(img_adv.shape)
-    print(torch.norm(img-img_adv.squeeze(0), p=2))
+    # print(time.time() - start)
     print(torch.norm(model(img.unsqueeze(0))-model(img_adv), p=2))
     img = img_adv.squeeze(0)
 
