@@ -21,6 +21,8 @@ import requests
 from io import BytesIO
 
 import skimage.io
+from tqdm import tqdm
+
 from advertorch.attacks import L2PGDAttack
 from skimage.measure import find_contours
 import matplotlib.pyplot as plt
@@ -34,6 +36,7 @@ from PIL import Image
 
 import utils
 import vision_transformer as vits
+from attack.attack import generate_attack
 from utils.visualization_utils import visualize_att_map
 
 
@@ -97,55 +100,33 @@ def display_instances(image, mask, fname="test", figsize=(5, 5), blur=False, con
     return
 
 
-def main(dataloader):
+def main(dataloader, args, model, model_name, device):
+    distance_list = list()
+    cos_sim = nn.CosineSimilarity(dim=1, eps=1e-6)
     for idx, data in tqdm(enumerate(dataloader)):
-        if idx * self.batch_size > 5:
+        if idx * args.batch_size > 5:
             break
-        inputs = data[0].to(self.device)
-        input_embed = self.model(inputs).detach()
-        visualize_att_map(inputs.squeeze(0), img_idx=idx, model=self.dreamsim_model.extractor_list[0].model,
-                          device=self.device, patch_size=patch_size,
-                          output_dir=os.path.join(self.config.teacher_model_name, 'clean'))
-        if self.config.attack:
-            adv_inputs = self.general_attack.generate_attack(inputs, img_0=None, img_1=None, target=input_embed,
-                                                             target_model=self.dreamsim_model.embed,
-                                                             is_dist_attack=True)
+        inputs = data[0].to(device)
+        input_embed = model(inputs).detach()
+        visualize_att_map(inputs.squeeze(0), img_idx=idx, model=model, device=device, patch_size=args.patch_size,
+                          output_dir=os.path.join(model_name, 'clean'))
+        adv_inputs = generate_attack(attack=args.attack, eps=args.eps, x=inputs, target=input_embed, model=model)
 
-            adv_input_embed = self.model(adv_inputs).detach()
+        adv_input_embed = model(adv_inputs).detach()
 
-            cos_dist = 1 - self.cos_sim(input_embed.unsqueeze(0), adv_input_embed.unsqueeze(0))
+        cos_dist = 1 - cos_sim(input_embed.unsqueeze(0), adv_input_embed.unsqueeze(0))
 
-            dreamsim_dist_list.append(cos_dist)
+        distance_list.append(cos_dist)
 
-            visualize_att_map(adv_inputs.squeeze(0), img_idx=idx,
-                              model=self.dreamsim_model.extractor_list[0].model,
-                              device=self.device, patch_size=patch_size,
-                              output_dir=os.path.join(self.config.teacher_model_name, 'adv'))
-    if self.config.attack:
-        torch.save(dreamsim_dist_list,
-                   f'{self.config.teacher_model_name}/distance_list_{self.config.attack}_{self.config.eps}')
+        visualize_att_map(adv_inputs.squeeze(0), img_idx=idx, model=model, device=device,
+                          patch_size=args.patch_size,
+                          output_dir=os.path.join(model_name, 'adv'))
 
-    logging.info('finished')
+        torch.save(model, f'{model_name}/distance_list_{args.attack}_{args.eps}')
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser('Visualize Self-Attention maps')
-    parser.add_argument('--arch', default='vit_small', type=str,
-                        choices=['vit_tiny', 'vit_small', 'vit_base'], help='Architecture (support only ViT atm).')
-    parser.add_argument('--patch_size', default=8, type=int, help='Patch resolution of the model.')
-    parser.add_argument('--pretrained_weights', default='', type=str,
-                        help="Path to pretrained weights to load.")
-    parser.add_argument("--checkpoint_key", default="teacher", type=str,
-                        help='Key to use in the checkpoint (example: "teacher")')
-    parser.add_argument("--image_path", default=None, type=str, help="Path of the image to load.")
-    parser.add_argument("--image_size", default=(480, 480), type=int, nargs="+", help="Resize image.")
-    parser.add_argument('--output_dir', default='.', help='Path where to save visualizations.')
-    parser.add_argument("--threshold", type=float, default=None, help="""We visualize masks
-        obtained by thresholding the self-attention maps to keep xx% of the mass.""")
-    args = parser.parse_args()
-
-    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-    # build model
+def load_dino_model():
+    global p
     model = vits.__dict__[args.arch](patch_size=args.patch_size, num_classes=0)
     print(sum(p.numel() for p in model.parameters() if p.requires_grad))
     for p in model.parameters():
@@ -181,3 +162,27 @@ if __name__ == '__main__':
         else:
             print("There is no reference weights available for this model => We use random weights.")
 
+    return model
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser('Visualize Self-Attention maps')
+    parser.add_argument('--model_name', default='dino', type=str,
+                        choices=['dino', 'clip', 'open_clip'], help='ViT based model to use')
+    parser.add_argument('--arch', default='vit_small', type=str,
+                        choices=['vit_tiny', 'vit_small', 'vit_base'], help='Architecture (support only ViT atm).')
+    parser.add_argument('--patch_size', default=8, type=int, help='Patch resolution of the model.')
+    parser.add_argument('--pretrained_weights', default='', type=str,
+                        help="Path to pretrained weights to load.")
+    parser.add_argument("--checkpoint_key", default="teacher", type=str,
+                        help='Key to use in the checkpoint (example: "teacher")')
+    parser.add_argument("--image_path", default=None, type=str, help="Path of the image to load.")
+    parser.add_argument("--image_size", default=(480, 480), type=int, nargs="+", help="Resize image.")
+    parser.add_argument('--output_dir', default='.', help='Path where to save visualizations.')
+    parser.add_argument("--threshold", type=float, default=None, help="""We visualize masks
+        obtained by thresholding the self-attention maps to keep xx% of the mass.""")
+    args = parser.parse_args()
+
+    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    # build model
+    dino_model = load_dino_model()
