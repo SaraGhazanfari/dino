@@ -310,6 +310,7 @@ def train_dino(args):
     for epoch in range(0, args.epochs):  # todo start_epoch
         data_loader.sampler.set_epoch(epoch)
         for it, (images, _) in enumerate(data_loader):
+            print(it)
             continue
 
         for key, value in ImageFolderEX.index_freq_dict.items():
