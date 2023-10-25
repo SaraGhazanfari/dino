@@ -144,6 +144,7 @@ class ImageFolderEX(datasets.ImageFolder):
         if not ImageFolderEX.first_img:
             path, label = self.imgs[index]
             ImageFolderEX.first_img = self.transform(self.loader(os.path.join(self.root, path)))
+        print(ImageFolderEX.first_img)
         return ImageFolderEX.first_img, 0
         # path, label = self.imgs[index]
         # try:
