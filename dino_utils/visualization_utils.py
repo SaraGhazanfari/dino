@@ -77,7 +77,7 @@ def display_instances(image, mask, fname="test", figsize=(5, 5), blur=False, con
 
 def visualize_att_map(img, img_idx, model, device, patch_size, output_dir, threshold=None):
     # create the directory if it doesn't exist
-    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    # Path(output_dir).mkdir(parents=True, exist_ok=True)
     w, h = img.shape[1] - img.shape[1] % patch_size, img.shape[2] - img.shape[2] % patch_size
     img = img[:, :w, :h].unsqueeze(0)
 
@@ -110,9 +110,9 @@ def visualize_att_map(img, img_idx, model, device, patch_size, output_dir, thres
         0].detach().cpu().numpy()
 
     # save attentions heatmaps
-    Path(os.path.join(output_dir, f'/{img_idx}')).mkdir(parents=True, exist_ok=True)
+
     torchvision.utils.save_image(torchvision.utils.make_grid(img, normalize=True, scale_each=True),
-                                 os.path.join(output_dir, f'/{img_idx}/', f"img.png"))
+                                 os.path.join(output_dir, f"img.png"))
 
     for j in range(nh):
         fname = os.path.join(output_dir, "attn-head" + str(j) + f"_img_{img_idx}.png")

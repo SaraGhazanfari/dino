@@ -14,6 +14,8 @@
 import os
 
 import argparse
+from pathlib import Path
+
 import cv2
 import random
 import colorsys
@@ -28,7 +30,6 @@ import torch.nn as nn
 
 from torchvision import transforms as pth_transforms
 import numpy as np
-
 
 import vision_transformer as vits
 from attack.attack import generate_attack
@@ -95,29 +96,32 @@ def display_instances(image, mask, fname="test", figsize=(5, 5), blur=False, con
     return
 
 
-def main(dataloader, args, model, model_name, device):
+def main(dataloader, args, model, device):
     distance_list = list()
     cos_sim = nn.CosineSimilarity(dim=1, eps=1e-6)
     for idx, data in tqdm(enumerate(dataloader)):
         if idx * args.batch_size > 5:
             break
         inputs = data[0].to(device)
-        input_embed = model(inputs).detach()
+        input_embed = model(inputs)  # .detach()
+        output_dir = f'{args.model_name}/clean/{idx}'
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
         visualize_att_map(inputs.squeeze(0), img_idx=idx, model=model, device=device, patch_size=args.patch_size,
-                          output_dir=os.path.join(model_name, 'clean'))
+                          output_dir=output_dir)
         adv_inputs = generate_attack(attack=args.attack, eps=args.eps, x=inputs, target=input_embed, model=model)
 
-        adv_input_embed = model(adv_inputs).detach()
+        adv_input_embed = model(adv_inputs)  # .detach()
 
         cos_dist = 1 - cos_sim(input_embed.unsqueeze(0), adv_input_embed.unsqueeze(0))
 
         distance_list.append(cos_dist)
-
+        output_dir = f'{args.model_name}/adv/{idx}'
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
         visualize_att_map(adv_inputs.squeeze(0), img_idx=idx, model=model, device=device,
                           patch_size=args.patch_size,
-                          output_dir=os.path.join(model_name, 'adv'))
+                          output_dir=output_dir)
 
-    torch.save(model, f'{model_name}/distance_list_{args.attack}_{args.eps}')
+    torch.save(model, f'{args.model_name}/distance_list_{args.attack}_{args.eps}')
 
 
 def load_dino_model():
@@ -199,7 +203,6 @@ if __name__ == '__main__':
     parser.add_argument('--eps', default=0.5, type=float, help='Perturbation budget for attack')
     args = parser.parse_args()
 
-
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     dataloader = load_data(args)
     # build model
@@ -209,6 +212,8 @@ if __name__ == '__main__':
     # main(dataloader, args, dino_model, 'dino_model', device)
     else:
         from transformers import CLIPModel
-        model = CLIPModel.from_pretrained("openai/clip-vit-base-patch16").vision_model
 
-    main(dataloader, args, model, args.model_name, device)
+        model = vits.VisionTransformer(
+            **CLIPModel.from_pretrained("openai/clip-vit-base-patch16").vision_model.state_dict())
+
+    main(dataloader, args, model, device)

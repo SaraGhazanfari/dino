@@ -77,7 +77,9 @@ def extract_feature_pipeline(args):
     print("Extracting features for train set...")
     train_features = extract_features(model, data_loader_train, args)
     print("Extracting features for val set...")
-    test_features = extract_features(model, data_loader_val, args, is_test=True)
+    test_features = extract_features(model, data_loader_val, args)
+    print("Extracting adversary features for val set...")
+    test_adversary_features = extract_features(model, data_loader_val, args, is_test=True)
 
     if utils.get_rank() == 0:
         train_features = nn.functional.normalize(train_features, dim=1, p=2)
@@ -91,7 +93,7 @@ def extract_feature_pipeline(args):
         torch.save(test_features.cpu(), os.path.join(args.dump_features, "testfeat.pth"))
         torch.save(train_labels.cpu(), os.path.join(args.dump_features, "trainlabels.pth"))
         torch.save(test_labels.cpu(), os.path.join(args.dump_features, "testlabels.pth"))
-    return train_features, test_features, train_labels, test_labels
+    return train_features, test_features, train_labels, test_labels, test_adversary_features
 
 
 def extract_features(model, data_loader, args, multiscale=False, is_test=False):
@@ -237,9 +239,11 @@ if __name__ == '__main__':
         test_features = torch.load(os.path.join(args.load_features, "testfeat.pth"))
         train_labels = torch.load(os.path.join(args.load_features, "trainlabels.pth"))
         test_labels = torch.load(os.path.join(args.load_features, "testlabels.pth"))
+        test_adversary_features=torch.load(os.path.join(args.load_features, "testadvfeat.pth"))
     else:
         # need to extract features !
-        train_features, test_features, train_labels, test_labels = extract_feature_pipeline(args)
+        train_features, test_features, train_labels, test_labels, test_adversary_features = extract_feature_pipeline(
+            args)
 
     if utils.get_rank() == 0:
         if args.use_cuda:
@@ -253,4 +257,10 @@ if __name__ == '__main__':
             top1, top5 = knn_classifier(train_features, train_labels,
                                         test_features, test_labels, k, args.temperature)
             print(f"{k}-NN classifier result: Top1: {top1}, Top5: {top5}")
+
+        for k in args.nb_knn:
+            top1, top5 = knn_classifier(train_features, train_labels,
+                                        test_adversary_features, test_labels, k, args.temperature)
+            print(f"{k}-NN classifier result: Top1: {top1}, Top5: {top5}")
+
     dist.barrier()
