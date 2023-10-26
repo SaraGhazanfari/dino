@@ -12,34 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import os
-import sys
+
 import argparse
 import cv2
 import random
 import colorsys
-import requests
-from io import BytesIO
-
-import skimage.io
+from torchvision.datasets import ImageFolder
 from tqdm import tqdm
 
-from advertorch.attacks import L2PGDAttack
 from skimage.measure import find_contours
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
 import torch
 import torch.nn as nn
-import torchvision
+
 from torchvision import transforms as pth_transforms
 import numpy as np
-from PIL import Image
 
-import utils
+
 import vision_transformer as vits
 from attack.attack import generate_attack
 from dino_utils.visualization_utils import visualize_att_map
-
-from eval_knn import ReturnIndexDataset
 
 
 def apply_mask(image, mask, color, alpha=0.5):
@@ -124,13 +117,13 @@ def main(dataloader, args, model, model_name, device):
                           patch_size=args.patch_size,
                           output_dir=os.path.join(model_name, 'adv'))
 
-        torch.save(model, f'{model_name}/distance_list_{args.attack}_{args.eps}')
+    torch.save(model, f'{model_name}/distance_list_{args.attack}_{args.eps}')
 
 
 def load_dino_model():
     global p
     model = vits.__dict__[args.arch](patch_size=args.patch_size, num_classes=0)
-    print(sum(p.numel() for p in model.parameters() if p.requires_grad))
+
     for p in model.parameters():
         p.requires_grad = False
     model.eval()
@@ -173,10 +166,10 @@ def load_data(args):
         pth_transforms.CenterCrop(224),
         pth_transforms.ToTensor(),
     ])
-    dataset_val = ReturnIndexDataset(os.path.join(args.data_path, "val"), transform=transform)
+    dataset_val = ImageFolder(os.path.join(args.data_path, "val"), transform=transform)
     data_loader_val = torch.utils.data.DataLoader(
         dataset_val,
-        batch_size=args.batch_size_per_gpu,
+        batch_size=args.batch_size,
         num_workers=args.num_workers,
         pin_memory=True,
         drop_last=False,
@@ -195,15 +188,27 @@ if __name__ == '__main__':
                         help="Path to pretrained weights to load.")
     parser.add_argument("--checkpoint_key", default="teacher", type=str,
                         help='Key to use in the checkpoint (example: "teacher")')
-    parser.add_argument("--image_path", default=None, type=str, help="Path of the image to load.")
+    parser.add_argument("--data_path", default=None, type=str, help="Path of the image to load.")
+    parser.add_argument("--batch_size", default=1, type=int, help="Batch size")
+    parser.add_argument("--num_workers", default=1, type=int, help="Number of workers")
     parser.add_argument("--image_size", default=(480, 480), type=int, nargs="+", help="Resize image.")
     parser.add_argument('--output_dir', default='.', help='Path where to save visualizations.')
     parser.add_argument("--threshold", type=float, default=None, help="""We visualize masks
         obtained by thresholding the self-attention maps to keep xx% of the mass.""")
+    parser.add_argument("--attack", default='PGD-L2', type=str, help='Attack L2, Linf')
+    parser.add_argument('--eps', default=0.5, type=float, help='Perturbation budget for attack')
     args = parser.parse_args()
 
+
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-    # build model
-    dino_model = load_dino_model()
     dataloader = load_data(args)
-    main(dataloader, args, dino_model, 'dino_model', device)
+    # build model
+    if args.model_name == 'dino':
+        model = load_dino_model()
+
+    # main(dataloader, args, dino_model, 'dino_model', device)
+    else:
+        from transformers import CLIPModel
+        model = CLIPModel.from_pretrained("openai/clip-vit-base-patch16").vision_model
+
+    main(dataloader, args, model, args.model_name, device)

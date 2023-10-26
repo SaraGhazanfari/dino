@@ -94,7 +94,6 @@ def extract_feature_pipeline(args):
     return train_features, test_features, train_labels, test_labels
 
 
-@torch.no_grad()
 def extract_features(model, data_loader, args, multiscale=False, is_test=False):
     metric_logger = utils.MetricLogger(delimiter="  ")
     features = None

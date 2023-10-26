@@ -105,21 +105,19 @@ def visualize_att_map(img, img_idx, model, device, patch_size, output_dir, thres
         th_attn = nn.functional.interpolate(th_attn.unsqueeze(0), scale_factor=patch_size, mode="nearest")[
             0].cpu().numpy()
 
-    print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
-    print('Looking into this!',nh,  w_featmap, h_featmap, attentions.shape)
     attentions = attentions.reshape(nh, w_featmap, h_featmap)
     attentions = nn.functional.interpolate(attentions.unsqueeze(0), scale_factor=patch_size, mode="nearest")[
         0].detach().cpu().numpy()
 
     # save attentions heatmaps
+    Path(os.path.join(output_dir, f'/{img_idx}')).mkdir(parents=True, exist_ok=True)
     torchvision.utils.save_image(torchvision.utils.make_grid(img, normalize=True, scale_each=True),
-                                 os.path.join(output_dir,
-                                              f"img_{img_idx}.png"))
+                                 os.path.join(output_dir, f'/{img_idx}/', f"img.png"))
+
     for j in range(nh):
         fname = os.path.join(output_dir, "attn-head" + str(j) + f"_img_{img_idx}.png")
         plt.imsave(fname=fname, arr=attentions[j], format='png')
         print(f"{fname} saved.")
-        break
 
     if threshold is not None:
         image = skimage.io.imread(os.path.join(output_dir, "img.png"))
