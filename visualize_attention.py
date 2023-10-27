@@ -33,7 +33,7 @@ import numpy as np
 
 import vision_transformer as vits
 from attack.attack import generate_attack
-from dino_utils.visualization_utils import visualize_att_map
+# from dino_utils.visualization_utils import visualize_att_map
 
 
 def apply_mask(image, mask, color, alpha=0.5):
