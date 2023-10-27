@@ -19,6 +19,8 @@ from pathlib import Path
 # import cv2
 import random
 import colorsys
+
+from PIL import Image
 from torchvision.datasets import ImageFolder
 from tqdm import tqdm
 
@@ -96,13 +98,13 @@ def display_instances(image, mask, fname="test", figsize=(5, 5), blur=False, con
     return
 
 
-def main(dataloader, args, model, device):
+def main(ref_img, dataloader, args, model, device):
     distance_list = list()
     cos_sim = nn.CosineSimilarity(dim=1, eps=1e-6)
     for idx, data in tqdm(enumerate(dataloader)):
         inputs = data[0].to(device)
         input_embed = model(inputs)
-        distance_list.extend(cos_sim(input_embed[0:-1], input_embed[-1:]))
+        distance_list.extend(cos_sim(ref_img, input_embed[0:]))
     torch.save(distance_list, 'inter_class_distance_list.pt')
     #     if idx * args.batch_size > 5:
     #         break
@@ -182,7 +184,8 @@ def load_data(args):
         pin_memory=True,
         drop_last=False,
     )
-    return data_loader_val
+    img_ref = transform(Image.open('ref.png', mode='r'))
+    return data_loader_val, img_ref
 
 
 if __name__ == '__main__':
@@ -208,7 +211,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-    dataloader = load_data(args)
+    dataloader, img_ref = load_data(args)
     # build model
     if args.model_name == 'dino':
         model = load_dino_model()
@@ -219,5 +222,5 @@ if __name__ == '__main__':
 
         model = vits.VisionTransformer(
             **CLIPModel.from_pretrained("openai/clip-vit-base-patch16").vision_model.state_dict())
-
-    main(dataloader, args, model, device)
+    img_ref_embed = model(img_ref).unsqueeze(0)
+    main(img_ref_embed, dataloader, args, model, device)
