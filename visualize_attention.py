@@ -102,8 +102,8 @@ def main(dataloader, args, model, device):
     for idx, data in tqdm(enumerate(dataloader)):
         inputs = data[0].to(device)
         input_embed = model(inputs)
-        distance_list.extend(cos_sim(input_embed[0:1], input_embed[1:]))
-    torch.save(distance_list, 'distance_list.pt')
+        distance_list.extend(cos_sim(input_embed[0:-1], input_embed[-1:]))
+    torch.save(distance_list, 'inter_class_distance_list.pt')
     #     if idx * args.batch_size > 5:
     #         break
     #     inputs = data[0].to(device)
