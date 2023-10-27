@@ -222,5 +222,5 @@ if __name__ == '__main__':
 
         model = vits.VisionTransformer(
             **CLIPModel.from_pretrained("openai/clip-vit-base-patch16").vision_model.state_dict())
-    img_ref_embed = model(img_ref).unsqueeze(0)
+    img_ref_embed = model(img_ref.unsqueeze(0))
     main(img_ref_embed, dataloader, args, model, device)
