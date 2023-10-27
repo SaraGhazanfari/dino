@@ -16,7 +16,7 @@ import os
 import argparse
 from pathlib import Path
 
-import cv2
+# import cv2
 import random
 import colorsys
 from torchvision.datasets import ImageFolder
