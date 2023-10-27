@@ -100,28 +100,32 @@ def main(dataloader, args, model, device):
     distance_list = list()
     cos_sim = nn.CosineSimilarity(dim=1, eps=1e-6)
     for idx, data in tqdm(enumerate(dataloader)):
-        if idx * args.batch_size > 5:
-            break
         inputs = data[0].to(device)
-        input_embed = model(inputs)  # .detach()
-        output_dir = f'{args.model_name}/clean/{idx}'
-        Path(output_dir).mkdir(parents=True, exist_ok=True)
-        visualize_att_map(inputs.squeeze(0), img_idx=idx, model=model, device=device, patch_size=args.patch_size,
-                          output_dir=output_dir)
-        adv_inputs = generate_attack(attack=args.attack, eps=args.eps, x=inputs, target=input_embed, model=model)
-
-        adv_input_embed = model(adv_inputs)  # .detach()
-
-        cos_dist = 1 - cos_sim(input_embed.unsqueeze(0), adv_input_embed.unsqueeze(0))
-
-        distance_list.append(cos_dist)
-        output_dir = f'{args.model_name}/adv/{idx}'
-        Path(output_dir).mkdir(parents=True, exist_ok=True)
-        visualize_att_map(adv_inputs.squeeze(0), img_idx=idx, model=model, device=device,
-                          patch_size=args.patch_size,
-                          output_dir=output_dir)
-
-    torch.save(model, f'{args.model_name}/distance_list_{args.attack}_{args.eps}')
+        input_embed = model(inputs)
+        distance_list.extend(cos_sim(input_embed[0:1], input_embed[1:]))
+    torch.save(distance_list, 'distance_list.pt')
+    #     if idx * args.batch_size > 5:
+    #         break
+    #     inputs = data[0].to(device)
+    #     input_embed = model(inputs)  # .detach()
+    #     output_dir = f'{args.model_name}/clean/{idx}'
+    #     Path(output_dir).mkdir(parents=True, exist_ok=True)
+    #     visualize_att_map(inputs.squeeze(0), img_idx=idx, model=model, device=device, patch_size=args.patch_size,
+    #                       output_dir=output_dir)
+    #     adv_inputs = generate_attack(attack=args.attack, eps=args.eps, x=inputs, target=input_embed, model=model)
+    #
+    #     adv_input_embed = model(adv_inputs)  # .detach()
+    #
+    #     cos_dist = 1 - cos_sim(input_embed.unsqueeze(0), adv_input_embed.unsqueeze(0))
+    #
+    #     distance_list.append(cos_dist)
+    #     output_dir = f'{args.model_name}/adv/{idx}'
+    #     Path(output_dir).mkdir(parents=True, exist_ok=True)
+    #     visualize_att_map(adv_inputs.squeeze(0), img_idx=idx, model=model, device=device,
+    #                       patch_size=args.patch_size,
+    #                       output_dir=output_dir)
+    #
+    # torch.save(model, f'{args.model_name}/distance_list_{args.attack}_{args.eps}')
 
 
 def load_dino_model():
