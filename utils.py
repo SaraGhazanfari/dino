@@ -37,7 +37,6 @@ class GaussianBlur(object):
     """
     Apply Gaussian Blur to the PIL image.
     """
-
     def __init__(self, p=0.5, radius_min=0.1, radius_max=2.):
         self.prob = p
         self.radius_min = radius_min
@@ -59,7 +58,6 @@ class Solarization(object):
     """
     Apply Solarization to the PIL image.
     """
-
     def __init__(self, p):
         self.p = p
 
@@ -76,13 +74,11 @@ def load_pretrained_weights(model, pretrained_weights, checkpoint_key, model_nam
         if checkpoint_key is not None and checkpoint_key in state_dict:
             print(f"Take key {checkpoint_key} in provided checkpoint dict")
             state_dict = state_dict[checkpoint_key]
-
         # remove `module.` prefix
         state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
         # remove `backbone.` prefix induced by multicrop wrapper
         state_dict = {k.replace("backbone.", ""): v for k, v in state_dict.items()}
         msg = model.load_state_dict(state_dict, strict=False)
-
         print('Pretrained weights found at {} and loaded with msg: {}'.format(pretrained_weights, msg))
     else:
         print("Please use the `--pretrained_weights` argument to indicate the path of the checkpoint to evaluate.")
@@ -401,8 +397,7 @@ class MetricLogger(object):
         total_time = time.time() - start_time
         total_time_str = str(datetime.timedelta(seconds=int(total_time)))
         print('{} Total time: {} ({:.6f} s / it)'.format(
-            header, total_time_str, total_time / len(iterable)), flush=True)
-        sys.stdout.flush()
+            header, total_time_str, total_time / len(iterable)))
 
 
 def get_sha():
@@ -410,7 +405,6 @@ def get_sha():
 
     def _run(command):
         return subprocess.check_output(command, cwd=cwd).decode('ascii').strip()
-
     sha = 'N/A'
     diff = "clean"
     branch = 'N/A'
@@ -486,7 +480,7 @@ def init_distributed_mode(args):
         print('Will run the code on one GPU.')
         args.rank, args.gpu, args.world_size = 0, 0, 1
         os.environ['MASTER_ADDR'] = '127.0.0.1'
-        os.environ['MASTER_PORT'] = get_port_number()  # '29500'
+        os.environ['MASTER_PORT'] = '29500'
     else:
         print('Does not support training without GPU.')
         sys.exit(1)
@@ -503,14 +497,6 @@ def init_distributed_mode(args):
         args.rank, args.dist_url), flush=True)
     dist.barrier()
     setup_for_distributed(args.rank == 0)
-
-
-def get_port_number():
-    from socket import socket
-    with socket() as s:
-        s.bind(('', 0))
-        port = s.getsockname()[1]
-    return port
 
 
 def accuracy(output, target, topk=(1,)):
@@ -568,7 +554,6 @@ class LARS(torch.optim.Optimizer):
     """
     Almost copy-paste from https://github.com/facebookresearch/barlowtwins/blob/main/main.py
     """
-
     def __init__(self, params, lr=0, weight_decay=0, momentum=0.9, eta=0.001,
                  weight_decay_filter=None, lars_adaptation_filter=None):
         defaults = dict(lr=lr, weight_decay=weight_decay, momentum=momentum,
@@ -615,7 +600,6 @@ class MultiCropWrapper(nn.Module):
     concatenate all the output features and run the head forward on these
     concatenated features.
     """
-
     def __init__(self, backbone, head):
         super(MultiCropWrapper, self).__init__()
         # disable layers dedicated to ImageNet labels classification
@@ -623,10 +607,8 @@ class MultiCropWrapper(nn.Module):
         self.backbone = backbone
         self.head = head
 
-    def forward(self, x, is_student=False):
+    def forward(self, x):
         # convert to list
-        to_print = 'student' if is_student else 'teacher'
-
         if not isinstance(x, list):
             x = [x]
         idx_crops = torch.cumsum(torch.unique_consecutive(
@@ -635,7 +617,6 @@ class MultiCropWrapper(nn.Module):
         )[1], 0)
         start_idx, output = 0, torch.empty(0).to(x[0].device)
         for end_idx in idx_crops:
-            print(to_print, torch.cat(x[start_idx: end_idx]).shape)
             _out = self.backbone(torch.cat(x[start_idx: end_idx]))
             # The output is a tuple with XCiT model. See:
             # https://github.com/facebookresearch/xcit/blob/master/xcit.py#L404-L405
@@ -674,7 +655,6 @@ class PCA():
     """
     Class to  compute and apply PCA.
     """
-
     def __init__(self, dim=256, whit=0.5):
         self.dim = dim
         self.whit = whit
@@ -701,7 +681,7 @@ class PCA():
         print("keeping %.2f %% of the energy" % (d.sum() / totenergy * 100.0))
 
         # for the whitening
-        d = np.diag(1. / d ** self.whit)
+        d = np.diag(1. / d**self.whit)
 
         # principal components
         self.dvt = np.dot(d, v.T)
@@ -776,7 +756,7 @@ def compute_map(ranks, gnd, kappas=[]):
     """
 
     map = 0.
-    nq = len(gnd)  # number of queries
+    nq = len(gnd) # number of queries
     aps = np.zeros(nq)
     pr = np.zeros(len(kappas))
     prs = np.zeros((nq, len(kappas)))
@@ -798,8 +778,8 @@ def compute_map(ranks, gnd, kappas=[]):
             qgndj = np.empty(0)
 
         # sorted positions of positive and junk images (0 based)
-        pos = np.arange(ranks.shape[0])[np.in1d(ranks[:, i], qgnd)]
-        junk = np.arange(ranks.shape[0])[np.in1d(ranks[:, i], qgndj)]
+        pos  = np.arange(ranks.shape[0])[np.in1d(ranks[:,i], qgnd)]
+        junk = np.arange(ranks.shape[0])[np.in1d(ranks[:,i], qgndj)]
 
         k = 0;
         ij = 0;
@@ -820,9 +800,9 @@ def compute_map(ranks, gnd, kappas=[]):
         aps[i] = ap
 
         # compute precision @ k
-        pos += 1  # get it to 1-based
+        pos += 1 # get it to 1-based
         for j in np.arange(len(kappas)):
-            kq = min(max(pos), kappas[j]);
+            kq = min(max(pos), kappas[j]); 
             prs[i, j] = (pos <= kq).sum() / kq
         pr = pr + prs[i, :]
 
@@ -834,7 +814,7 @@ def compute_map(ranks, gnd, kappas=[]):
 
 def multi_scale(samples, model):
     v = None
-    for s in [1, 1 / 2 ** (1 / 2), 1 / 2]:  # we use 3 different scales
+    for s in [1, 1/2**(1/2), 1/2]:  # we use 3 different scales
         if s == 1:
             inp = samples.clone()
         else:

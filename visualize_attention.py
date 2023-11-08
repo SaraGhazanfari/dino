@@ -12,30 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import os
-
+import sys
 import argparse
-from pathlib import Path
-
-# import cv2
+import cv2
 import random
 import colorsys
+import requests
+from io import BytesIO
 
-from PIL import Image
-from torchvision.datasets import ImageFolder
-from tqdm import tqdm
-
+import skimage.io
 from skimage.measure import find_contours
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
 import torch
 import torch.nn as nn
-
+import torchvision
 from torchvision import transforms as pth_transforms
 import numpy as np
+from PIL import Image
 
+import utils
 import vision_transformer as vits
-from attack.attack import generate_attack
-# from dino_utils.visualization_utils import visualize_att_map
 
 
 def apply_mask(image, mask, color, alpha=0.5):
@@ -78,7 +75,7 @@ def display_instances(image, mask, fname="test", figsize=(5, 5), blur=False, con
         color = colors[i]
         _mask = mask[i]
         if blur:
-            _mask = cv2.blur(_mask, (10, 10))
+            _mask = cv2.blur(_mask,(10,10))
         # Mask
         masked_image = apply_mask(masked_image, _mask, color, alpha)
         # Mask Polygon
@@ -98,42 +95,25 @@ def display_instances(image, mask, fname="test", figsize=(5, 5), blur=False, con
     return
 
 
-def main(ref_img, dataloader, args, model, device):
-    distance_list = list()
-    cos_sim = nn.CosineSimilarity(dim=1, eps=1e-6)
-    for idx, data in tqdm(enumerate(dataloader)):
-        inputs = data[0].to(device)
-        input_embed = model(inputs)
-        distance_list.extend(cos_sim(ref_img, input_embed[0:]))
-    torch.save(distance_list, 'inter_class_distance_list.pt')
-    #     if idx * args.batch_size > 5:
-    #         break
-    #     inputs = data[0].to(device)
-    #     input_embed = model(inputs)  # .detach()
-    #     output_dir = f'{args.model_name}/clean/{idx}'
-    #     Path(output_dir).mkdir(parents=True, exist_ok=True)
-    #     visualize_att_map(inputs.squeeze(0), img_idx=idx, model=model, device=device, patch_size=args.patch_size,
-    #                       output_dir=output_dir)
-    #     adv_inputs = generate_attack(attack=args.attack, eps=args.eps, x=inputs, target=input_embed, model=model)
-    #
-    #     adv_input_embed = model(adv_inputs)  # .detach()
-    #
-    #     cos_dist = 1 - cos_sim(input_embed.unsqueeze(0), adv_input_embed.unsqueeze(0))
-    #
-    #     distance_list.append(cos_dist)
-    #     output_dir = f'{args.model_name}/adv/{idx}'
-    #     Path(output_dir).mkdir(parents=True, exist_ok=True)
-    #     visualize_att_map(adv_inputs.squeeze(0), img_idx=idx, model=model, device=device,
-    #                       patch_size=args.patch_size,
-    #                       output_dir=output_dir)
-    #
-    # torch.save(model, f'{args.model_name}/distance_list_{args.attack}_{args.eps}')
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser('Visualize Self-Attention maps')
+    parser.add_argument('--arch', default='vit_small', type=str,
+        choices=['vit_tiny', 'vit_small', 'vit_base'], help='Architecture (support only ViT atm).')
+    parser.add_argument('--patch_size', default=8, type=int, help='Patch resolution of the model.')
+    parser.add_argument('--pretrained_weights', default='', type=str,
+        help="Path to pretrained weights to load.")
+    parser.add_argument("--checkpoint_key", default="teacher", type=str,
+        help='Key to use in the checkpoint (example: "teacher")')
+    parser.add_argument("--image_path", default=None, type=str, help="Path of the image to load.")
+    parser.add_argument("--image_size", default=(480, 480), type=int, nargs="+", help="Resize image.")
+    parser.add_argument('--output_dir', default='.', help='Path where to save visualizations.')
+    parser.add_argument("--threshold", type=float, default=None, help="""We visualize masks
+        obtained by thresholding the self-attention maps to keep xx% of the mass.""")
+    args = parser.parse_args()
 
-
-def load_dino_model():
-    global p
+    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    # build model
     model = vits.__dict__[args.arch](patch_size=args.patch_size, num_classes=0)
-
     for p in model.parameters():
         p.requires_grad = False
     model.eval()
@@ -167,60 +147,67 @@ def load_dino_model():
         else:
             print("There is no reference weights available for this model => We use random weights.")
 
-    return model
-
-
-def load_data(args):
-    transform = pth_transforms.Compose([
-        pth_transforms.Resize(256, interpolation=3),
-        pth_transforms.CenterCrop(224),
-        pth_transforms.ToTensor(),
-    ])
-    dataset_val = ImageFolder(os.path.join(args.data_path, "val"), transform=transform)
-    data_loader_val = torch.utils.data.DataLoader(
-        dataset_val,
-        batch_size=args.batch_size,
-        num_workers=args.num_workers,
-        pin_memory=True,
-        drop_last=False,
-    )
-    img_ref = transform(Image.open('ref.jpg', mode='r'))
-    return data_loader_val, img_ref
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser('Visualize Self-Attention maps')
-    parser.add_argument('--model_name', default='dino', type=str,
-                        choices=['dino', 'clip', 'open_clip'], help='ViT based model to use')
-    parser.add_argument('--arch', default='vit_small', type=str,
-                        choices=['vit_tiny', 'vit_small', 'vit_base'], help='Architecture (support only ViT atm).')
-    parser.add_argument('--patch_size', default=8, type=int, help='Patch resolution of the model.')
-    parser.add_argument('--pretrained_weights', default='', type=str,
-                        help="Path to pretrained weights to load.")
-    parser.add_argument("--checkpoint_key", default="teacher", type=str,
-                        help='Key to use in the checkpoint (example: "teacher")')
-    parser.add_argument("--data_path", default=None, type=str, help="Path of the image to load.")
-    parser.add_argument("--batch_size", default=1, type=int, help="Batch size")
-    parser.add_argument("--num_workers", default=1, type=int, help="Number of workers")
-    parser.add_argument("--image_size", default=(480, 480), type=int, nargs="+", help="Resize image.")
-    parser.add_argument('--output_dir', default='.', help='Path where to save visualizations.')
-    parser.add_argument("--threshold", type=float, default=None, help="""We visualize masks
-        obtained by thresholding the self-attention maps to keep xx% of the mass.""")
-    parser.add_argument("--attack", default='PGD-L2', type=str, help='Attack L2, Linf')
-    parser.add_argument('--eps', default=0.5, type=float, help='Perturbation budget for attack')
-    args = parser.parse_args()
-
-    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-    dataloader, img_ref = load_data(args)
-    # build model
-    if args.model_name == 'dino':
-        model = load_dino_model()
-
-    # main(dataloader, args, dino_model, 'dino_model', device)
+    # open image
+    if args.image_path is None:
+        # user has not specified any image - we use our own image
+        print("Please use the `--image_path` argument to indicate the path of the image you wish to visualize.")
+        print("Since no image path have been provided, we take the first image in our paper.")
+        response = requests.get("https://dl.fbaipublicfiles.com/dino/img.png")
+        img = Image.open(BytesIO(response.content))
+        img = img.convert('RGB')
+    elif os.path.isfile(args.image_path):
+        with open(args.image_path, 'rb') as f:
+            img = Image.open(f)
+            img = img.convert('RGB')
     else:
-        from transformers import CLIPModel
+        print(f"Provided image path {args.image_path} is non valid.")
+        sys.exit(1)
+    transform = pth_transforms.Compose([
+        pth_transforms.Resize(args.image_size),
+        pth_transforms.ToTensor(),
+        pth_transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+    ])
+    img = transform(img)
 
-        model = vits.VisionTransformer(
-            **CLIPModel.from_pretrained("openai/clip-vit-base-patch16").vision_model.state_dict())
-    img_ref_embed = model(img_ref.unsqueeze(0).to(device))
-    main(img_ref_embed, dataloader, args, model, device)
+    # make the image divisible by the patch size
+    w, h = img.shape[1] - img.shape[1] % args.patch_size, img.shape[2] - img.shape[2] % args.patch_size
+    img = img[:, :w, :h].unsqueeze(0)
+
+    w_featmap = img.shape[-2] // args.patch_size
+    h_featmap = img.shape[-1] // args.patch_size
+
+    attentions = model.get_last_selfattention(img.to(device))
+
+    nh = attentions.shape[1] # number of head
+
+    # we keep only the output patch attention
+    attentions = attentions[0, :, 0, 1:].reshape(nh, -1)
+
+    if args.threshold is not None:
+        # we keep only a certain percentage of the mass
+        val, idx = torch.sort(attentions)
+        val /= torch.sum(val, dim=1, keepdim=True)
+        cumval = torch.cumsum(val, dim=1)
+        th_attn = cumval > (1 - args.threshold)
+        idx2 = torch.argsort(idx)
+        for head in range(nh):
+            th_attn[head] = th_attn[head][idx2[head]]
+        th_attn = th_attn.reshape(nh, w_featmap, h_featmap).float()
+        # interpolate
+        th_attn = nn.functional.interpolate(th_attn.unsqueeze(0), scale_factor=args.patch_size, mode="nearest")[0].cpu().numpy()
+
+    attentions = attentions.reshape(nh, w_featmap, h_featmap)
+    attentions = nn.functional.interpolate(attentions.unsqueeze(0), scale_factor=args.patch_size, mode="nearest")[0].cpu().numpy()
+
+    # save attentions heatmaps
+    os.makedirs(args.output_dir, exist_ok=True)
+    torchvision.utils.save_image(torchvision.utils.make_grid(img, normalize=True, scale_each=True), os.path.join(args.output_dir, "img.png"))
+    for j in range(nh):
+        fname = os.path.join(args.output_dir, "attn-head" + str(j) + ".png")
+        plt.imsave(fname=fname, arr=attentions[j], format='png')
+        print(f"{fname} saved.")
+
+    if args.threshold is not None:
+        image = skimage.io.imread(os.path.join(args.output_dir, "img.png"))
+        for j in range(nh):
+            display_instances(image, th_attn[j], fname=os.path.join(args.output_dir, "mask_th" + str(args.threshold) + "_head" + str(j) +".png"), blur=False)

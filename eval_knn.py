@@ -1,11 +1,11 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
-#
+# 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-#
+# 
 #     http://www.apache.org/licenses/LICENSE-2.0
-#
+# 
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -25,8 +25,6 @@ from torchvision import models as torchvision_models
 
 import utils
 import vision_transformer as vits
-from attack.attack import generate_attack
-from attack.general_attack import GeneralAttack
 
 
 def extract_feature_pipeline(args):
@@ -75,9 +73,9 @@ def extract_feature_pipeline(args):
 
     # ============ extract features ... ============
     print("Extracting features for train set...")
-    train_features = extract_features(model, data_loader_train, args)
+    train_features = extract_features(model, data_loader_train, args.use_cuda)
     print("Extracting features for val set...")
-    test_features = extract_features(model, data_loader_val, args, is_test=True)
+    test_features = extract_features(model, data_loader_val, args.use_cuda)
 
     if utils.get_rank() == 0:
         train_features = nn.functional.normalize(train_features, dim=1, p=2)
@@ -94,20 +92,13 @@ def extract_feature_pipeline(args):
     return train_features, test_features, train_labels, test_labels
 
 
-def extract_features(model, data_loader, args, multiscale=False, is_test=False):
+@torch.no_grad()
+def extract_features(model, data_loader, use_cuda=True, multiscale=False):
     metric_logger = utils.MetricLogger(delimiter="  ")
     features = None
-    distance_list = list()
     for samples, index in metric_logger.log_every(data_loader, 10):
         samples = samples.cuda(non_blocking=True)
         index = index.cuda(non_blocking=True)
-
-        if args.attack and is_test:
-            cos_sim = nn.CosineSimilarity(dim=1, eps=1e-6)
-            original_features = model(samples).detach()
-            samples = generate_attack(attack=args.attack, eps=args.eps, model=model, x=samples,
-                                      target=original_features)
-            distance_list.append(1 - cos_sim(model(samples).detach(), original_features))
         if multiscale:
             feats = utils.multi_scale(samples, model)
         else:
@@ -116,7 +107,7 @@ def extract_features(model, data_loader, args, multiscale=False, is_test=False):
         # init storage feature matrix
         if dist.get_rank() == 0 and features is None:
             features = torch.zeros(len(data_loader.dataset), feats.shape[-1])
-            if args.use_cuda:
+            if use_cuda:
                 features = features.cuda(non_blocking=True)
             print(f"Storing features into tensor of shape {features.shape}")
 
@@ -141,13 +132,10 @@ def extract_features(model, data_loader, args, multiscale=False, is_test=False):
 
         # update storage feature matrix
         if dist.get_rank() == 0:
-            if args.use_cuda:
+            if use_cuda:
                 features.index_copy_(0, index_all, torch.cat(output_l))
             else:
                 features.index_copy_(0, index_all.cpu(), torch.cat(output_l).cpu())
-    if args.attack and is_test:
-        root = args.load_features if args.load_features else args.dump_features
-        torch.save(distance_list, os.path.join(root, f'distance_list_{args.attack}_{args.eps}.pt'))
     return features
 
 
@@ -161,9 +149,9 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
     for idx in range(0, num_test_images, imgs_per_chunk):
         # get the features for test images
         features = test_features[
-                   idx: min((idx + imgs_per_chunk), num_test_images), :
-                   ]
-        targets = test_labels[idx: min((idx + imgs_per_chunk), num_test_images)]
+            idx : min((idx + imgs_per_chunk), num_test_images), :
+        ]
+        targets = test_labels[idx : min((idx + imgs_per_chunk), num_test_images)]
         batch_size = targets.shape[0]
 
         # calculate the dot product and compute top-k neighbors
@@ -204,18 +192,18 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser('Evaluation with weighted k-NN on ImageNet')
     parser.add_argument('--batch_size_per_gpu', default=128, type=int, help='Per-GPU batch-size')
     parser.add_argument('--nb_knn', default=[10, 20, 100, 200], nargs='+', type=int,
-                        help='Number of NN to use. 20 is usually working the best.')
+        help='Number of NN to use. 20 is usually working the best.')
     parser.add_argument('--temperature', default=0.07, type=float,
-                        help='Temperature used in the voting coefficient')
+        help='Temperature used in the voting coefficient')
     parser.add_argument('--pretrained_weights', default='', type=str, help="Path to pretrained weights to evaluate.")
     parser.add_argument('--use_cuda', default=True, type=utils.bool_flag,
-                        help="Should we store the features on GPU? We recommend setting this to False if you encounter OOM")
+        help="Should we store the features on GPU? We recommend setting this to False if you encounter OOM")
     parser.add_argument('--arch', default='vit_small', type=str, help='Architecture')
     parser.add_argument('--patch_size', default=16, type=int, help='Patch resolution of the model.')
     parser.add_argument("--checkpoint_key", default="teacher", type=str,
-                        help='Key to use in the checkpoint (example: "teacher")')
+        help='Key to use in the checkpoint (example: "teacher")')
     parser.add_argument('--dump_features', default=None,
-                        help='Path where to save computed features, empty for no saving')
+        help='Path where to save computed features, empty for no saving')
     parser.add_argument('--load_features', default=None, help="""If the features have
         already been computed, where to find them.""")
     parser.add_argument('--num_workers', default=10, type=int, help='Number of data loading workers per GPU.')
@@ -223,8 +211,6 @@ if __name__ == '__main__':
         distributed training; see https://pytorch.org/docs/stable/distributed.html""")
     parser.add_argument("--local_rank", default=0, type=int, help="Please ignore and do not set this argument.")
     parser.add_argument('--data_path', default='/path/to/imagenet/', type=str)
-    parser.add_argument("--attack", default=None, type=str, help='Attack L2, Linf')
-    parser.add_argument('--eps', default=1.0, type=float, help='Perturbation budget for attack')
     args = parser.parse_args()
 
     utils.init_distributed_mode(args)
@@ -237,11 +223,9 @@ if __name__ == '__main__':
         test_features = torch.load(os.path.join(args.load_features, "testfeat.pth"))
         train_labels = torch.load(os.path.join(args.load_features, "trainlabels.pth"))
         test_labels = torch.load(os.path.join(args.load_features, "testlabels.pth"))
-        test_adversary_features=torch.load(os.path.join(args.load_features, "testadvfeat.pth"))
     else:
         # need to extract features !
-        train_features, test_features, train_labels, test_labels = extract_feature_pipeline(
-            args)
+        train_features, test_features, train_labels, test_labels = extract_feature_pipeline(args)
 
     if utils.get_rank() == 0:
         if args.use_cuda:
@@ -253,7 +237,6 @@ if __name__ == '__main__':
         print("Features are ready!\nStart the k-NN classification.")
         for k in args.nb_knn:
             top1, top5 = knn_classifier(train_features, train_labels,
-                                        test_features, test_labels, k, args.temperature)
+                test_features, test_labels, k, args.temperature)
             print(f"{k}-NN classifier result: Top1: {top1}, Top5: {top5}")
-
     dist.barrier()
