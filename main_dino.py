@@ -306,20 +306,9 @@ def train_dino(args):
             head_param += param.data.numel()
     print(f'{backbone_param} backbone parameters, {head_param} head parameters')
     print(f"Starting DINO training with {param_num} parameters!")
-    index_freq_dict = dict()
+
     for epoch in range(start_epoch, args.epochs):
         data_loader.sampler.set_epoch(epoch)
-        for it, (images, _, index) in enumerate(data_loader):
-            print(it)
-            for idx in index:
-                index_freq_dict[idx] = index_freq_dict.get(idx, 0) + 1
-                print(idx, index_freq_dict[idx])
-
-            print(len(index_freq_dict.keys()))
-        for key, value in index_freq_dict.items():
-            print(key, value)
-        print(len(index_freq_dict.keys()))
-
         # ============ training one epoch of DINO ... ============
         train_stats = train_one_epoch(student, teacher, teacher_without_ddp, dino_loss,
                                       data_loader, optimizer, lr_schedule, wd_schedule, momentum_schedule,
