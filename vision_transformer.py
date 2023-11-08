@@ -129,7 +129,9 @@ class PatchEmbed(nn.Module):
 
     def forward(self, x):
         B, C, H, W = x.shape
+        print('before patch embed:', x.shape)
         x = self.proj(x).flatten(2).transpose(1, 2)
+        print('After patch embed', x.shape)
         return x
 
 
