@@ -343,7 +343,12 @@ def train_one_epoch(student, teacher, teacher_without_ddp, dino_loss, data_loade
                     fp16_scaler, args):
     metric_logger = utils.MetricLogger(delimiter="  ")
     header = 'Epoch: [{}/{}]'.format(epoch, args.epochs)
-    for it, (images, _) in enumerate(metric_logger.log_every(data_loader, 10, header)):
+    for it, data in enumerate(metric_logger.log_every(data_loader, 10, header)):
+        print(data)
+        try:
+            print(len(data))
+        except:
+            print(data.shape)
         # update weight decay and learning rate according to their schedule
         it = len(data_loader) * epoch + it  # global training iteration
         for i, param_group in enumerate(optimizer.param_groups):
