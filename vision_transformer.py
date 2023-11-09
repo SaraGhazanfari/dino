@@ -127,10 +127,7 @@ class PatchEmbed(nn.Module):
 
     def forward(self, x):
         B, C, H, W = x.shape
-        print('before processing', x.shape)
-        print(self.proj(x).shape)
         x = self.proj(x).flatten(2).transpose(1, 2)
-        print('after processing', x.shape)
         return x
 
 
@@ -201,8 +198,12 @@ class VisionTransformer(nn.Module):
         x = self.patch_embed(x)  # patch linear embedding
 
         # add the [CLS] token to the embed patch tokens
+        print(self.cls_token.shape)
         cls_tokens = self.cls_token.expand(B, -1, -1)
+        print(cls_tokens.shape)
         x = torch.cat((cls_tokens, x), dim=1)
+        print(x.shape)
+        print('---------------------')
 
         # add positional encoding to each token
         x = x + self.interpolate_pos_encoding(x, w, h)
