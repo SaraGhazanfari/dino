@@ -191,6 +191,11 @@ class VisionTransformer(nn.Module):
         )
         assert int(w0) == patch_pos_embed.shape[-2] and int(h0) == patch_pos_embed.shape[-1]
         patch_pos_embed = patch_pos_embed.permute(0, 2, 3, 1).view(1, -1, dim)
+        print('********************')
+        print('pos embedding')
+        print(patch_pos_embed.shape)
+        print(patch_pos_embed)
+        print(patch_pos_embed.shape)
         return torch.cat((class_pos_embed.unsqueeze(0), patch_pos_embed), dim=1)
 
     def prepare_tokens(self, x):
@@ -198,12 +203,11 @@ class VisionTransformer(nn.Module):
         x = self.patch_embed(x)  # patch linear embedding
 
         # add the [CLS] token to the embed patch tokens
-        print(self.cls_token.shape)
+        print('------------------------')
+        print('cls token')
         cls_tokens = self.cls_token.expand(B, -1, -1)
-        print(cls_tokens.shape)
+        print(cls_tokens)
         x = torch.cat((cls_tokens, x), dim=1)
-        print(x.shape)
-        print('---------------------')
 
         # add positional encoding to each token
         x = x + self.interpolate_pos_encoding(x, w, h)
