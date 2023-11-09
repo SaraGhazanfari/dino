@@ -213,6 +213,7 @@ class VisionTransformer(nn.Module):
             x = blk(x)
             print(x.shape)
         x = self.norm(x)
+        print('Finally,', x[:, 0].shape)
         return x[:, 0]
 
     def get_last_selfattention(self, x):
