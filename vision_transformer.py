@@ -201,9 +201,6 @@ class VisionTransformer(nn.Module):
 
         cls_tokens = self.cls_token.expand(B, -1, -1)
         x = torch.cat((cls_tokens, x), dim=1)
-        print('------------------------')
-        print('cls token')
-        print(self.interpolate_pos_encoding(x, w, h))
         # add positional encoding to each token
         x = x + self.interpolate_pos_encoding(x, w, h)
 
@@ -211,8 +208,10 @@ class VisionTransformer(nn.Module):
 
     def forward(self, x):
         x = self.prepare_tokens(x)
+        print('before going to the blocks,', x.shape)
         for blk in self.blocks:
             x = blk(x)
+            print(x.shape)
         x = self.norm(x)
         return x[:, 0]
 
