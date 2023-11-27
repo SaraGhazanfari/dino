@@ -127,6 +127,7 @@ def main():
 
     executor.update_parameters(name="dino")
     shared_folder = os.environ.get('folder_path')
+    print(shared_folder)
     args.dist_url = get_init_file(shared_folder).as_uri()
     # args.dist_url = get_init_file().as_uri()
 
