@@ -46,10 +46,17 @@ def get_shared_folder() -> Path:
     raise RuntimeError("No shared folder available")
 
 
-def get_init_file():
+# def get_init_file():
+#     # Init file must not exist, but it's parent dir must exist.
+#     os.makedirs(str(get_shared_folder()), exist_ok=True)
+#     init_file = get_shared_folder() / f"{uuid.uuid4().hex}_init"
+#     if init_file.exists():
+#         os.remove(str(init_file))
+#     return init_file
+def get_init_file(shared_folder):
     # Init file must not exist, but it's parent dir must exist.
-    os.makedirs(str(get_shared_folder()), exist_ok=True)
-    init_file = get_shared_folder() / f"{uuid.uuid4().hex}_init"
+    os.makedirs(str(shared_folder), exist_ok=True)
+    init_file = Path(shared_folder) / f"{uuid.uuid4().hex}_init"
     if init_file.exists():
         os.remove(str(init_file))
     return init_file
@@ -68,8 +75,9 @@ class Trainer(object):
     def checkpoint(self):
         import os
         import submitit
-
-        self.args.dist_url = get_init_file().as_uri()
+        shared_folder = os.environ.get('folder_path')
+        self.args.dist_url = get_init_file(shared_folder).as_uri()
+        # self.args.dist_url = get_init_file().as_uri()
         print("Requeuing ", self.args)
         empty_trainer = type(self)(self.args)
         return submitit.helpers.DelayedSubmission(empty_trainer)
