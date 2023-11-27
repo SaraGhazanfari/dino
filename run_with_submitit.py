@@ -126,8 +126,9 @@ def main():
     )
 
     executor.update_parameters(name="dino")
-
-    args.dist_url = get_init_file().as_uri()
+    shared_folder = os.environ.get('folder_path')
+    args.dist_url = get_init_file(shared_folder).as_uri()
+    # args.dist_url = get_init_file().as_uri()
 
     trainer = Trainer(args)
     job = executor.submit(trainer)
